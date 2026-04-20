@@ -75,6 +75,7 @@ def build_llm(settings: Settings | None = None) -> LLMAdapter:
         api_key=resolved.openai_api_key,
         model=resolved.llm_model,
         timeout_seconds=resolved.llm_timeout_seconds,
+        base_url=resolved.openai_base_url,
     )
 
 
