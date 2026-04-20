@@ -1,0 +1,14 @@
+name: Scrape
+
+on:
+  workflow_dispatch:
+
+jobs:
+  scrape:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Placeholder
+        run: echo "Scrape workflow will run registered sources in a later task."
