@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import logging
 from pathlib import Path
 
 from engine.deal_ranker import rank_deals
@@ -8,6 +9,7 @@ from models.deal import Deal
 from models.persona import PersonaType, default_persona_filter
 
 DEALS_DIR = Path("data/deals")
+logger = logging.getLogger(__name__)
 
 
 def latest_deals_file(deals_dir: Path = DEALS_DIR) -> Path | None:
@@ -19,10 +21,23 @@ def load_latest_deals(deals_dir: Path = DEALS_DIR) -> list[Deal]:
     path = latest_deals_file(deals_dir)
     if path is None:
         return []
-    payload = json.loads(path.read_text(encoding="utf-8"))
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        logger.warning("Failed to read local deals from %s: %s", path, exc)
+        return []
     if not isinstance(payload, list):
         return []
-    return [Deal.model_validate(item) for item in payload if isinstance(item, dict)]
+
+    deals: list[Deal] = []
+    for item in payload:
+        if not isinstance(item, dict):
+            continue
+        try:
+            deals.append(Deal.model_validate(item))
+        except ValueError as exc:
+            logger.warning("Skipping invalid deal in %s: %s", path, exc)
+    return deals
 
 
 def ranked_deals(persona_type: PersonaType, deals: list[Deal] | None = None) -> list[Deal]:
@@ -47,12 +62,14 @@ def deals_within_budget(total_budget_yuan: int, persona_type: PersonaType) -> li
 
 def format_deal_message(deal: Deal) -> str:
     price_yuan = deal.price_cny_fen // 100
-    fire = " 🔥" if price_yuan < 500 else ""
-    date_label = deal.departure_date.isoformat()
+    trip_type = "往返" if deal.is_round_trip else "单程"
+    if deal.return_date is not None:
+        date_label = f"{deal.departure_date.isoformat()} ~ {deal.return_date.isoformat()}"
+    else:
+        date_label = deal.departure_date.isoformat()
     return (
-        f"{fire}{deal.origin_city} -> {deal.destination_city}\n"
-        f"Price: CNY {price_yuan}\n"
-        f"Date: {date_label}\n"
-        f"Transport: {deal.transport_mode.value}\n"
-        f"Book: {deal.booking_url}"
+        f"✈️ {deal.origin_city} → {deal.destination_city}\n"
+        f"💰 ¥{price_yuan} {trip_type}\n"
+        f"📅 {date_label}\n"
+        f"🔗 订票链接：{deal.booking_url}"
     )

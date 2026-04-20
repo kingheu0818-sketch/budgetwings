@@ -24,40 +24,20 @@ jobs:
       - name: Install Python dependencies
         run: python -m pip install -e .
 
-      - name: Run agent pipeline when keys are configured
+      - name: Run agent pipeline if OpenAI key exists
         env:
-          BUDGETWINGS_LLM_PROVIDER_SECRET: ${{ secrets.BUDGETWINGS_LLM_PROVIDER }}
-          BUDGETWINGS_LLM_MODEL_SECRET: ${{ secrets.BUDGETWINGS_LLM_MODEL }}
-          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          OPENAI_BASE_URL: ${{ secrets.OPENAI_BASE_URL }}
           TAVILY_API_KEY: ${{ secrets.TAVILY_API_KEY }}
+          BUDGETWINGS_LLM_MODEL_SECRET: ${{ secrets.BUDGETWINGS_LLM_MODEL }}
         run: |
-          if [ -n "$TAVILY_API_KEY" ] && { [ -n "$ANTHROPIC_API_KEY" ] || [ -n "$OPENAI_API_KEY" ]; }; then
-            if [ -n "$BUDGETWINGS_LLM_PROVIDER_SECRET" ]; then
-              export BUDGETWINGS_LLM_PROVIDER="$BUDGETWINGS_LLM_PROVIDER_SECRET"
-            elif [ -n "$OPENAI_API_KEY" ] && [ -z "$ANTHROPIC_API_KEY" ]; then
-              export BUDGETWINGS_LLM_PROVIDER="openai"
-            else
-              export BUDGETWINGS_LLM_PROVIDER="claude"
-            fi
-            if [ -n "$BUDGETWINGS_LLM_MODEL_SECRET" ]; then
-              export BUDGETWINGS_LLM_MODEL="$BUDGETWINGS_LLM_MODEL_SECRET"
-            fi
-            python cli.py run --city 深圳 --persona worker --top 20
+          if [ -n "$OPENAI_API_KEY" ]; then
+            export BUDGETWINGS_LLM_PROVIDER="openai"
+            export BUDGETWINGS_LLM_MODEL="${BUDGETWINGS_LLM_MODEL_SECRET:-gpt-5.4-mini}"
+            python cli.py run --city 深圳 --persona worker --top 10
           else
-            echo "LLM/search keys not configured; skipping agent pipeline."
+            echo "OPENAI_API_KEY is not configured; skipping agent pipeline."
           fi
-
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: "20"
-
-      - name: Build static website
-        working-directory: web
-        run: |
-          npm install
-          npm run build
 
       - name: Commit data changes
         run: |
@@ -67,6 +47,6 @@ jobs:
           if git diff --cached --quiet; then
             echo "No data changes to commit."
           else
-            git commit -m "data: update daily agent outputs"
+            git commit -m "data: update deals for $(date -u +%F)"
             git push
           fi

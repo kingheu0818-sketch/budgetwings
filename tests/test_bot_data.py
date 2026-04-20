@@ -32,5 +32,5 @@ def test_budget_filter_and_message_format() -> None:
 
     assert deals
     message = format_deal_message(deals[0])
-    assert "Price: CNY" in message
-    assert "Book:" in message
+    assert "💰 ¥" in message
+    assert "🔗 订票链接：" in message
