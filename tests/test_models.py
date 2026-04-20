@@ -8,20 +8,22 @@ from models.persona import PersonaType, default_persona_filter
 
 
 def test_deal_stores_price_in_cny_fen() -> None:
-    deal = Deal(
-        source="example",
-        origin_city="Shenzhen",
-        origin_code="SZX",
-        destination_city="Chiang Mai",
-        destination_code="CNX",
-        price_cny_fen=68_000,
-        transport_mode=TransportMode.FLIGHT,
-        departure_date=date(2026, 5, 1),
-        return_date=date(2026, 5, 3),
-        is_round_trip=True,
-        operator="Example Air",
-        booking_url="https://example.com/book",
-        scraped_at=datetime(2026, 4, 20, tzinfo=timezone.utc),
+    deal = Deal.model_validate(
+        {
+            "source": "example",
+            "origin_city": "Shenzhen",
+            "origin_code": "SZX",
+            "destination_city": "Chiang Mai",
+            "destination_code": "CNX",
+            "price_cny_fen": 68_000,
+            "transport_mode": TransportMode.FLIGHT,
+            "departure_date": date(2026, 5, 1),
+            "return_date": date(2026, 5, 3),
+            "is_round_trip": True,
+            "operator": "Example Air",
+            "booking_url": "https://example.com/book",
+            "scraped_at": datetime(2026, 4, 20, tzinfo=timezone.utc),
+        }
     )
 
     assert deal.price_cny_fen == 68_000
