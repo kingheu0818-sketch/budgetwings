@@ -1,0 +1,51 @@
+destination:
+  city: Chiang Mai
+  country: Thailand
+  tags: [Southeast Asia, temples, food, night market, solo friendly]
+
+visa:
+  cn_passport: "Visa on arrival or current Thailand entry policy; verify before booking."
+  tips: "Check official visa policy before departure and keep enough time for airport queues."
+
+weather:
+  best_months: [11, 12, 1, 2]
+  rainy_season: [6, 7, 8, 9]
+  current: "{{ dynamic_weather_data }}"
+
+transport:
+  from_airport: "Songthaew or ride-hailing from the airport to the old city."
+  in_city: "Walk in the old city, use songthaew for longer hops, or rent a scooter if licensed."
+
+highlights:
+  free:
+    - Old City temple walk
+    - Sunday Night Market
+    - Tha Phae Gate area
+  paid:
+    - Wat Phra That Doi Suthep
+    - Thai cooking class
+
+food:
+  budget:
+    - Night market snacks
+    - Khao soi from local stalls
+  midrange:
+    - Northern Thai restaurant meal
+    - Specialty coffee around Nimman
+
+accommodation:
+  budget: "Old City hostels and guesthouses."
+  midrange: "Guesthouses or boutique hotels around Old City/Nimman."
+
+itinerary_templates:
+  2day:
+    day1: "Old City temples -> coffee break -> Doi Suthep sunset -> night market"
+    day2: "Cooking class -> Nimman cafes -> airport return"
+  3day:
+    day1: "Old City temples -> night market"
+    day2: "Doi Suthep -> Nimman cafes"
+    day3: "Cooking class -> relaxed return"
+
+budget_estimate:
+  student_2day: "CNY 300-500 excluding tickets"
+  worker_2day: "CNY 800-1200 excluding tickets"
