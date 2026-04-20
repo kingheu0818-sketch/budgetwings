@@ -21,14 +21,26 @@ class ScoutAgent(BaseAgent):
         fetch_tool = self.require_tool("web_fetch")
         parser_tool = self.require_tool("price_parser")
 
-        queries = self._build_queries(origin_city)
         snippets: list[str] = []
         urls: list[str] = []
-        for query in queries:
-            logger.info("Scout searching query: %s", query)
-            result = await search_tool.execute(WebSearchInput(query=query, max_results=8))
-            snippets.extend(self._snippets_from_result(result))
-            urls.extend(self._urls_from_result(result))
+        seen_snippets: set[str] = set()
+        for category, queries in self._build_query_groups(origin_city).items():
+            category_seen: set[str] = set()
+            for query in queries:
+                logger.info("Scout searching category=%s query=%s", category, query)
+                result = await search_tool.execute(WebSearchInput(query=query, max_results=8))
+                for item in self._items_from_result(result):
+                    key = self._result_key(item)
+                    if key in category_seen:
+                        continue
+                    category_seen.add(key)
+                    snippet = self._snippet_from_item(item)
+                    if snippet not in seen_snippets:
+                        seen_snippets.add(snippet)
+                        snippets.append(snippet)
+                    url = str(item.get("url", ""))
+                    if url.startswith(("http://", "https://")):
+                        urls.append(url)
 
         for url in self._top_urls(urls, limit=3):
             logger.info("Scout fetching URL: %s", url)
@@ -67,37 +79,58 @@ class ScoutAgent(BaseAgent):
             deals.append(deal.model_copy(update={"notes": notes}))
         return deals
 
-    def _build_queries(self, origin_city: str) -> list[str]:
-        return [
-            f"{origin_city} 出发 特价机票 2026年5月",
-            f"cheap flights from {origin_city} May 2026",
-            f"{origin_city} 出发 特价火车票 高铁折扣",
-            f"{origin_city} 五一 低价出行 旅游推荐",
-        ]
+    def _build_query_groups(self, origin_city: str) -> dict[str, list[str]]:
+        return {
+            "international_budget_airlines": [
+                f"{origin_city} 飞 曼谷 特价",
+                f"{origin_city} 飞 清迈 机票",
+                f"{origin_city} 飞 东京 廉航",
+                f"cheap flights from {origin_city} May 2026",
+            ],
+            "airline_promotions": [
+                f"{origin_city} 春秋航空 特价",
+                f"{origin_city} 亚洲航空 促销",
+            ],
+            "train_discounts": [
+                f"{origin_city} 高铁 特价票 学生票 折扣",
+            ],
+            "weekend_trips": [
+                f"{origin_city} 周末 短途旅行 低价推荐",
+            ],
+        }
 
     def _snippets_from_result(self, result: ToolOutput) -> list[str]:
+        return [self._snippet_from_item(item) for item in self._items_from_result(result)]
+
+    def _items_from_result(self, result: ToolOutput) -> list[dict[str, object]]:
         if not result.success or not isinstance(result.data, list):
             return []
-        snippets: list[str] = []
-        for item in result.data:
-            if not isinstance(item, dict):
-                continue
-            title = str(item.get("title", ""))
-            url = str(item.get("url", ""))
-            content = str(item.get("content", ""))
-            snippets.append(f"Search result\n{title}\n{url}\n{content}")
-        return snippets
+        return [item for item in result.data if isinstance(item, dict)]
+
+    def _snippet_from_item(self, item: dict[str, object]) -> str:
+        title = str(item.get("title", ""))
+        url = str(item.get("url", ""))
+        content = str(item.get("content", ""))
+        return f"Search result\n{title}\n{url}\n{content}"
+
+    def _result_key(self, item: dict[str, object]) -> str:
+        url = str(item.get("url", "")).strip().casefold()
+        if url:
+            return url
+        title = str(item.get("title", "")).strip().casefold()
+        content = str(item.get("content", "")).strip().casefold()
+        return f"{title}|{content[:160]}"
 
     def _urls_from_result(self, result: ToolOutput) -> list[str]:
         if not result.success or not isinstance(result.data, list):
             return []
-        urls: list[str] = []
+        snippets: list[str] = []
         for item in result.data:
             if isinstance(item, dict):
                 url = str(item.get("url", ""))
                 if url.startswith(("http://", "https://")):
-                    urls.append(url)
-        return urls
+                    snippets.append(url)
+        return snippets
 
     def _top_urls(self, urls: list[str], limit: int) -> list[str]:
         seen: set[str] = set()

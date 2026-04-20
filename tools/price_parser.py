@@ -4,10 +4,30 @@ import json
 import re
 from datetime import date, timedelta
 from typing import Any
+from urllib.parse import urlparse
 
 from llm.base import LLMAdapter
 from models.deal import Deal, TransportMode
 from tools.base import BaseTool, ToolInput, ToolOutput
+
+CITY_ROUTE_CODES: dict[str, str] = {
+    "北京": "bjs",
+    "上海": "sha",
+    "广州": "can",
+    "深圳": "szx",
+    "成都": "ctu",
+    "杭州": "hgh",
+    "曼谷": "bkk",
+    "清迈": "cnx",
+    "东京": "tyo",
+    "大阪": "kix",
+    "首尔": "sel",
+    "海口": "hak",
+    "湛江": "zha",
+    "南宁": "nng",
+    "贵阳": "kwe",
+    "重庆": "ckg",
+}
 
 
 class PriceParserInput(ToolInput):
@@ -66,14 +86,16 @@ class PriceParserTool(BaseTool):
         price_cny = self._price_cny(item.get("price_cny"))
         if price_cny is None or price_cny <= 0:
             return None
+        origin_city = str(item.get("origin_city", "unknown"))
+        destination_city = str(item.get("destination_city", "unknown"))
         departure = self._departure_date(item.get("departure_date"))
         transport = self._transport_mode(item.get("transport_mode", "flight"))
         return Deal.model_validate(
             {
                 "source": str(item.get("source", "agent")),
-                "origin_city": str(item.get("origin_city", "unknown")),
+                "origin_city": origin_city,
                 "origin_code": item.get("origin_code"),
-                "destination_city": str(item.get("destination_city", "unknown")),
+                "destination_city": destination_city,
                 "destination_code": item.get("destination_code"),
                 "destination_country": item.get("destination_country"),
                 "price_cny_fen": price_cny * 100,
@@ -82,7 +104,7 @@ class PriceParserTool(BaseTool):
                 "return_date": item.get("return_date"),
                 "is_round_trip": bool(item.get("is_round_trip", False)),
                 "operator": item.get("operator"),
-                "booking_url": str(item.get("booking_url", "https://example.com")),
+                "booking_url": self._booking_url(item, origin_city, destination_city),
                 "source_url": item.get("source_url"),
                 "notes": item.get("notes"),
             }
@@ -104,6 +126,37 @@ class PriceParserTool(BaseTool):
             return None
         match = re.search(r"\d+(?:\.\d+)?", text.replace(",", ""))
         return int(float(match.group(0))) if match else None
+
+    def _booking_url(
+        self,
+        item: dict[str, Any],
+        origin_city: str,
+        destination_city: str,
+    ) -> str:
+        booking_url = str(item.get("booking_url") or "").strip()
+        fallback = self._route_search_url(origin_city, destination_city)
+        if not booking_url:
+            return fallback or "https://example.com"
+        if fallback and self._is_generic_booking_url(booking_url):
+            return fallback
+        return booking_url
+
+    def _route_search_url(self, origin_city: str, destination_city: str) -> str | None:
+        origin = CITY_ROUTE_CODES.get(origin_city)
+        destination = CITY_ROUTE_CODES.get(destination_city)
+        if origin is None or destination is None:
+            return None
+        return f"https://www.skyscanner.com.cn/transport/flights/{origin}/{destination}/"
+
+    def _is_generic_booking_url(self, booking_url: str) -> bool:
+        parsed = urlparse(booking_url)
+        path = parsed.path.strip("/").casefold()
+        if not parsed.netloc:
+            return True
+        if path in {"", "flights", "transport/flights"}:
+            return True
+        generic_markers = ("airline", "from.html", "routes/szx/cn")
+        return any(marker in path for marker in generic_markers)
 
     def _departure_date(self, value: Any) -> str:
         today = date.today()

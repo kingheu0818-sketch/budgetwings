@@ -13,12 +13,13 @@ from models.persona import PersonaType
 
 async def run_command(args: argparse.Namespace) -> None:
     orchestrator = build_orchestrator()
-    deals = await orchestrator.run(
-        city=args.city,
+    cities = parse_cities(args.city)
+    deals = await orchestrator.run_many(
+        cities=cities,
         persona_type=PersonaType(args.persona),
         top_n=args.top,
     )
-    print(f"Saved {len(deals)} deals under data/deals/")
+    print(f"Saved {len(deals)} deals for {', '.join(cities)} under data/deals/")
 
 
 async def guide_command(args: argparse.Namespace) -> None:
@@ -44,12 +45,24 @@ def find_deal(deal_id: str, deals_dir: Path = Path("data/deals")) -> Deal:
     raise ValueError(msg)
 
 
+def parse_cities(value: str) -> list[str]:
+    cities = [city.strip() for city in value.split(",") if city.strip()]
+    if not cities:
+        msg = "--city must include at least one city"
+        raise ValueError(msg)
+    return cities
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="BudgetWings AI Agent CLI")
     subparsers = parser.add_subparsers(dest="command", required=True)
 
     run_parser = subparsers.add_parser("run", help="Run scout -> analyst -> guide pipeline")
-    run_parser.add_argument("--city", required=True)
+    run_parser.add_argument(
+        "--city",
+        required=True,
+        help="Origin city, or multiple cities separated by commas, e.g. 深圳,上海,北京",
+    )
     run_parser.add_argument(
         "--persona",
         choices=[item.value for item in PersonaType],

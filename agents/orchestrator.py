@@ -33,8 +33,19 @@ class Orchestrator:
         top_n: int = 10,
         output_root: Path = Path("data"),
     ) -> list[Deal]:
+        return await self.run_many([city], persona_type, top_n=top_n, output_root=output_root)
+
+    async def run_many(
+        self,
+        cities: list[str],
+        persona_type: PersonaType | str,
+        top_n: int = 10,
+        output_root: Path = Path("data"),
+    ) -> list[Deal]:
         persona = PersonaType(persona_type)
-        raw_deals = await self.scout.discover(city)
+        raw_deals: list[Deal] = []
+        for city in cities:
+            raw_deals.extend(await self.scout.discover(city))
         top_deals = await self.analyst.analyze(raw_deals, persona, top_n=top_n)
         self._write_deals(top_deals, output_root / "deals")
         for deal in top_deals[: min(3, len(top_deals))]:
