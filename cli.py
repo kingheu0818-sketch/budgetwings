@@ -6,13 +6,14 @@ import json
 import logging
 from pathlib import Path
 
+from agents.graph import build_graph_pipeline
 from agents.orchestrator import build_orchestrator
 from models.deal import Deal
 from models.persona import PersonaType
 
 
 async def run_command(args: argparse.Namespace) -> None:
-    orchestrator = build_orchestrator()
+    orchestrator = build_orchestrator() if args.engine == "legacy" else build_graph_pipeline()
     cities = parse_cities(args.city)
     deals = await orchestrator.run_many(
         cities=cities,
@@ -69,6 +70,12 @@ def build_parser() -> argparse.ArgumentParser:
         default="worker",
     )
     run_parser.add_argument("--top", type=int, default=10)
+    run_parser.add_argument(
+        "--engine",
+        choices=["graph", "legacy"],
+        default="graph",
+        help="Pipeline engine to use. Defaults to graph.",
+    )
     run_parser.set_defaults(handler=run_command)
 
     guide_parser = subparsers.add_parser("guide", help="Generate a guide for an existing deal")
