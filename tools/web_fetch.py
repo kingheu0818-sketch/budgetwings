@@ -1,15 +1,19 @@
 from __future__ import annotations
 
+import logging
+
 import httpx
 from bs4 import BeautifulSoup
 
 from config import Settings, get_settings
 from tools.base import BaseTool, ToolInput, ToolOutput
 
+logger = logging.getLogger(__name__)
+
 
 class WebFetchInput(ToolInput):
     url: str
-    max_chars: int = 8000
+    max_chars: int = 3000
 
 
 class WebFetchTool(BaseTool):
@@ -23,15 +27,17 @@ class WebFetchTool(BaseTool):
     async def execute(self, input: ToolInput) -> ToolOutput:
         params = WebFetchInput.model_validate(input)
         try:
+            logger.info("Fetching URL %s", params.url)
             html = await self._fetch_html(params.url)
-            text = self._extract_text(html, params.max_chars)
+            text = self._extract_text(html, min(params.max_chars, 3000))
         except Exception as exc:
+            logger.warning("Failed to fetch URL %s: %s", params.url, exc)
             return ToolOutput(success=False, error=str(exc))
         return ToolOutput(success=True, data={"url": params.url, "text": text})
 
     async def _fetch_html(self, url: str) -> str:
         headers = {"User-Agent": self.settings.user_agent}
-        timeout = httpx.Timeout(self.settings.scraper_timeout_seconds)
+        timeout = httpx.Timeout(15.0)
         async with httpx.AsyncClient(
             timeout=timeout,
             headers=headers,
@@ -39,6 +45,8 @@ class WebFetchTool(BaseTool):
         ) as client:
             response = await client.get(url)
             response.raise_for_status()
+            if not response.encoding:
+                response.encoding = getattr(response, "charset_encoding", None) or "utf-8"
             return response.text
 
     def _extract_text(self, html: str, max_chars: int) -> str:

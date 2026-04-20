@@ -53,10 +53,19 @@ class PriceParserTool(BaseTool):
         if not isinstance(raw_deals, list):
             msg = "price parser expected a JSON list or object with deals"
             raise ValueError(msg)
-        return [self._deal_from_payload(item) for item in raw_deals if isinstance(item, dict)]
+        deals: list[Deal] = []
+        for item in raw_deals:
+            if not isinstance(item, dict):
+                continue
+            deal = self._deal_from_payload(item)
+            if deal is not None:
+                deals.append(deal)
+        return deals
 
-    def _deal_from_payload(self, item: dict[str, Any]) -> Deal:
-        price_cny = int(item.get("price_cny", 0))
+    def _deal_from_payload(self, item: dict[str, Any]) -> Deal | None:
+        price_cny = self._price_cny(item.get("price_cny"))
+        if price_cny is None or price_cny <= 0:
+            return None
         departure = self._departure_date(item.get("departure_date"))
         transport = self._transport_mode(item.get("transport_mode", "flight"))
         return Deal.model_validate(
@@ -85,6 +94,17 @@ class PriceParserTool(BaseTool):
         except ValueError:
             return TransportMode.FLIGHT
 
+    def _price_cny(self, value: Any) -> int | None:
+        if isinstance(value, bool):
+            return None
+        if isinstance(value, int | float):
+            return int(value)
+        text = str(value).strip()
+        if not text or "需确认" in text:
+            return None
+        match = re.search(r"\d+(?:\.\d+)?", text.replace(",", ""))
+        return int(float(match.group(0))) if match else None
+
     def _departure_date(self, value: Any) -> str:
         today = date.today()
         try:
@@ -106,5 +126,9 @@ class PriceParserTool(BaseTool):
             "Extract low-price travel deals as strict JSON. Return either a list or "
             "an object with a deals list. Each item must include origin_city, "
             "destination_city, price_cny, transport_mode, departure_date, and booking_url. "
+            "Only extract deals that include an explicit numeric price in the source text; "
+            "do not estimate or invent prices. If a source has no concrete price, omit it "
+            "or mark it as 需确认 outside the deals list. Include airline/operator and "
+            "source_url when available. "
             f"Today is {date.today().isoformat()}; departure_date must be a future ISO date."
         )

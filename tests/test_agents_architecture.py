@@ -49,6 +49,17 @@ class FakeSearchTool(BaseTool):
         )
 
 
+class FakeFetchTool(BaseTool):
+    name = "web_fetch"
+    description = "fake fetch"
+
+    async def execute(self, input: ToolInput) -> ToolOutput:
+        return ToolOutput(
+            success=True,
+            data={"url": "https://example.com", "text": "Shenzhen to Bangkok CNY 199"},
+        )
+
+
 class FakeParserTool(BaseTool):
     name = "price_parser"
     description = "fake parser"
@@ -72,12 +83,14 @@ def deal(price: int = 19900, days_ahead: int = 7) -> Deal:
 
 
 def test_scout_agent_discovers_deals() -> None:
-    scout = ScoutAgent(FakeLLM(), [FakeSearchTool(), FakeParserTool()])
+    scout = ScoutAgent(FakeLLM(), [FakeSearchTool(), FakeFetchTool(), FakeParserTool()])
 
     deals = asyncio.run(scout.discover("Shenzhen"))
 
     assert len(deals) == 1
     assert deals[0].destination_city == "Bangkok"
+    assert deals[0].notes is not None
+    assert "Tavily" in deals[0].notes
 
 
 def test_analyst_agent_deduplicates_and_ranks() -> None:

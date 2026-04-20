@@ -45,19 +45,27 @@ def ranked_deals(persona_type: PersonaType, deals: list[Deal] | None = None) -> 
     return rank_deals(source_deals, default_persona_filter(persona_type))
 
 
-def search_deals(destination: str, persona_type: PersonaType) -> list[Deal]:
+def search_deals(
+    destination: str,
+    persona_type: PersonaType,
+    deals: list[Deal] | None = None,
+) -> list[Deal]:
     normalized = destination.casefold()
     return [
         deal
-        for deal in ranked_deals(persona_type)
+        for deal in ranked_deals(persona_type, deals)
         if normalized in deal.destination_city.casefold()
         or (deal.destination_country and normalized in deal.destination_country.casefold())
     ]
 
 
-def deals_within_budget(total_budget_yuan: int, persona_type: PersonaType) -> list[Deal]:
+def deals_within_budget(
+    total_budget_yuan: int,
+    persona_type: PersonaType,
+    deals: list[Deal] | None = None,
+) -> list[Deal]:
     budget_fen = total_budget_yuan * 100
-    return [deal for deal in ranked_deals(persona_type) if deal.price_cny_fen <= budget_fen]
+    return [deal for deal in ranked_deals(persona_type, deals) if deal.price_cny_fen <= budget_fen]
 
 
 def format_deal_message(deal: Deal) -> str:

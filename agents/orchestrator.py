@@ -16,6 +16,7 @@ from llm.openai_adapter import OpenAIAdapter
 from models.deal import Deal
 from models.persona import PersonaType
 from tools.price_parser import PriceParserTool
+from tools.web_fetch import WebFetchTool
 from tools.web_search import WebSearchTool
 
 
@@ -84,8 +85,9 @@ def build_orchestrator(settings: Settings | None = None) -> Orchestrator:
     resolved = settings or get_settings()
     llm = build_llm(resolved)
     search = WebSearchTool(resolved)
+    fetch = WebFetchTool(resolved)
     parser = PriceParserTool(llm)
-    scout = ScoutAgent(llm, [search, parser])
+    scout = ScoutAgent(llm, [search, fetch, parser])
     analyst = AnalystAgent(llm, [])
     guide = GuideAgent(llm, [search])
     return Orchestrator(scout=scout, analyst=analyst, guide=guide)
