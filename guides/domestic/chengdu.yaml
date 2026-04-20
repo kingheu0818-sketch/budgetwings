@@ -1,0 +1,51 @@
+destination:
+  city: Chengdu
+  country: China
+  tags: [domestic, food, panda, slow travel]
+
+visa:
+  cn_passport: "Domestic travel for Chinese passport holders."
+  tips: "Bring valid ID for rail, flight, and hotel check-in."
+
+weather:
+  best_months: [3, 4, 9, 10, 11]
+  rainy_season: [7, 8]
+  current: "{{ dynamic_weather_data }}"
+
+transport:
+  from_airport: "Metro and airport bus connect major city areas."
+  in_city: "Metro plus bike-sharing covers most central routes."
+
+highlights:
+  free:
+    - Kuanzhai Alley walk
+    - People's Park
+    - Jinli street walk
+  paid:
+    - Giant Panda Breeding Research Base
+    - Sichuan opera face-changing show
+
+food:
+  budget:
+    - Local noodles
+    - Street snacks near campus areas
+  midrange:
+    - Hot pot
+    - Sichuan bistro meal
+
+accommodation:
+  budget: "Hostels near Chunxi Road, Wenshu Monastery, or metro lines."
+  midrange: "Economy hotels around Tianfu Square or Chunxi Road."
+
+itinerary_templates:
+  2day:
+    day1: "Panda Base -> Wenshu Monastery -> Chunxi Road"
+    day2: "People's Park -> Kuanzhai Alley -> Jinli"
+  3day:
+    day1: "Panda Base -> city food walk"
+    day2: "People's Park -> Kuanzhai Alley -> Sichuan opera"
+    day3: "Museum or Dujiangyan day trip"
+
+budget_estimate:
+  student_2day: "CNY 250-500 excluding tickets"
+  worker_2day: "CNY 700-1200 excluding tickets"
