@@ -37,6 +37,12 @@ python -m pip install -e ".[dev]"
 pytest
 ```
 
+If dependency downloads are slow in mainland China, use the Tsinghua PyPI mirror:
+
+```bash
+python -m pip install -i https://pypi.tuna.tsinghua.edu.cn/simple -e ".[dev]"
+```
+
 On Windows PowerShell:
 
 ```powershell
@@ -44,6 +50,12 @@ python -m venv .venv
 .\.venv\Scripts\Activate.ps1
 python -m pip install -e ".[dev]"
 pytest
+```
+
+Windows PowerShell with the Tsinghua mirror:
+
+```powershell
+python -m pip install -i https://pypi.tuna.tsinghua.edu.cn/simple -e ".[dev]"
 ```
 
 ## Configuration
