@@ -68,12 +68,16 @@ class FakeParserTool(BaseTool):
         return ToolOutput(success=True, data=[deal().model_dump(mode="json")])
 
 
-def deal(price: int = 19900, days_ahead: int = 7) -> Deal:
+def deal(
+    price: int = 19900,
+    days_ahead: int = 7,
+    destination_city: str = "Bangkok",
+) -> Deal:
     return Deal.model_validate(
         {
             "source": "test",
             "origin_city": "Shenzhen",
-            "destination_city": "Bangkok",
+            "destination_city": destination_city,
             "price_cny_fen": price,
             "transport_mode": TransportMode.FLIGHT,
             "departure_date": (date.today() + timedelta(days=days_ahead)).isoformat(),
@@ -101,6 +105,24 @@ def test_analyst_agent_deduplicates_and_ranks() -> None:
 
     assert len(ranked) == 2
     assert ranked[0].price_cny_fen == 19900
+
+
+def test_analyst_agent_limits_and_interleaves_destinations() -> None:
+    analyst = AnalystAgent(FakeLLM(), [])
+    raw_deals = [
+        deal(price=10000, destination_city="Bangkok"),
+        deal(price=11000, destination_city="Bangkok"),
+        deal(price=12000, destination_city="Bangkok"),
+        deal(price=13000, destination_city="Tokyo"),
+        deal(price=14000, destination_city="Tokyo"),
+        deal(price=15000, destination_city="Seoul"),
+    ]
+
+    ranked = asyncio.run(analyst.analyze(raw_deals, PersonaType.STUDENT, top_n=6))
+
+    destinations = [item.destination_city for item in ranked]
+    assert destinations.count("Bangkok") == 2
+    assert destinations[:3] == ["Bangkok", "Tokyo", "Seoul"]
 
 
 def test_guide_agent_generates_markdown() -> None:

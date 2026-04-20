@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections import defaultdict, deque
 from collections.abc import Iterable
 
 from agents.base import BaseAgent
@@ -21,8 +22,10 @@ class AnalystAgent(BaseAgent):
         unique_deals = self._deduplicate(deals)
         persona = default_persona_filter(persona_type)
         filtered = filter_deals(unique_deals, persona)
-        ranked = rank_deals(filtered, persona)
-        return ranked[:top_n]
+        limited = self._limit_origin_destination(filtered, max_per_pair=2)
+        ranked = rank_deals(limited, persona)
+        diversified = self._diversify_destinations(ranked)
+        return diversified[:top_n]
 
     def _deduplicate(self, deals: Iterable[Deal]) -> list[Deal]:
         seen: set[tuple[str, str, str, int]] = set()
@@ -39,3 +42,33 @@ class AnalystAgent(BaseAgent):
             seen.add(key)
             unique.append(deal)
         return unique
+
+    def _limit_origin_destination(
+        self,
+        deals: Iterable[Deal],
+        max_per_pair: int,
+    ) -> list[Deal]:
+        grouped: dict[tuple[str, str], list[Deal]] = defaultdict(list)
+        for deal in deals:
+            grouped[(deal.origin_city, deal.destination_city)].append(deal)
+
+        limited: list[Deal] = []
+        for group in grouped.values():
+            cheapest = sorted(group, key=lambda deal: (deal.price_cny_fen, deal.departure_date))
+            limited.extend(cheapest[:max_per_pair])
+        return limited
+
+    def _diversify_destinations(self, deals: list[Deal]) -> list[Deal]:
+        grouped: dict[str, deque[Deal]] = defaultdict(deque)
+        destination_order: list[str] = []
+        for deal in deals:
+            if deal.destination_city not in grouped:
+                destination_order.append(deal.destination_city)
+            grouped[deal.destination_city].append(deal)
+
+        diversified: list[Deal] = []
+        while any(grouped.values()):
+            for destination in destination_order:
+                if grouped[destination]:
+                    diversified.append(grouped[destination].popleft())
+        return diversified

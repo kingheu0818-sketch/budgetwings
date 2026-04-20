@@ -5,12 +5,28 @@ from datetime import date
 
 from agents.base import BaseAgent
 from models.deal import Deal
-from tools.base import ToolOutput
+from tools.base import BaseTool, ToolOutput
 from tools.price_parser import PriceParserInput
 from tools.web_fetch import WebFetchInput
 from tools.web_search import WebSearchInput
 
 logger = logging.getLogger(__name__)
+
+DESTINATION_ALIASES: dict[str, set[str]] = {
+    "曼谷": {"曼谷", "Bangkok", "BKK"},
+    "清迈": {"清迈", "Chiang Mai", "CNX"},
+    "东京": {"东京", "Tokyo", "TYO", "NRT", "HND"},
+    "大阪": {"大阪", "Osaka", "KIX"},
+    "首尔": {"首尔", "Seoul", "ICN"},
+    "海口": {"海口", "Haikou", "HAK"},
+    "三亚": {"三亚", "Sanya", "SYX"},
+    "成都": {"成都", "Chengdu", "CTU", "TFU"},
+    "重庆": {"重庆", "Chongqing", "CKG"},
+    "桂林": {"桂林", "Guilin", "KWL"},
+    "南宁": {"南宁", "Nanning", "NNG"},
+    "贵阳": {"贵阳", "Guiyang", "KWE"},
+    "湛江": {"湛江", "Zhanjiang", "ZHA"},
+}
 
 
 class ScoutAgent(BaseAgent):
@@ -20,87 +36,160 @@ class ScoutAgent(BaseAgent):
         search_tool = self.require_tool("web_search")
         fetch_tool = self.require_tool("web_fetch")
         parser_tool = self.require_tool("price_parser")
+        source_note = (
+            f"价格参考自 {date.today().isoformat()} Tavily 搜索结果，"
+            "实际价格请以订票平台为准"
+        )
 
+        destinations = await self._discover_destinations(search_tool, origin_city)
+        logger.info("Scout destination candidates for %s: %s", origin_city, destinations)
+
+        deals: list[Deal] = []
+        for destination in destinations:
+            context = await self._context_for_destination(
+                search_tool=search_tool,
+                fetch_tool=fetch_tool,
+                origin_city=origin_city,
+                destination=destination,
+            )
+            if not context:
+                logger.info(
+                    "Scout skipped destination=%s because no context was found",
+                    destination,
+                )
+                continue
+
+            parse_result = await parser_tool.execute(
+                PriceParserInput(
+                    text="\n\n".join(
+                        [
+                            f"Target destination: {destination}",
+                            *context,
+                            f"Source note: {source_note}",
+                        ]
+                    ),
+                    origin_city=origin_city,
+                    max_price_cny=max_price,
+                )
+            )
+            if not parse_result.success:
+                logger.warning(
+                    "Scout price parsing failed for destination=%s: %s",
+                    destination,
+                    parse_result.error,
+                )
+                continue
+            raw_deals = parse_result.data if isinstance(parse_result.data, list) else []
+            destination_deals = self._validated_deals(raw_deals, destination, source_note)
+            deals.extend(destination_deals[:2])
+        return deals
+
+    async def _discover_destinations(self, search_tool: BaseTool, origin_city: str) -> list[str]:
+        scores = dict.fromkeys(DESTINATION_ALIASES, 0)
+        for query in self._discovery_queries(origin_city):
+            logger.info("Scout discovering destinations query=%s", query)
+            result = await search_tool.execute(WebSearchInput(query=query, max_results=8))
+            for item in self._items_from_result(result):
+                text = self._snippet_from_item(item)
+                for destination, aliases in DESTINATION_ALIASES.items():
+                    if any(alias.casefold() in text.casefold() for alias in aliases):
+                        scores[destination] += 1
+
+        discovered = [
+            destination
+            for destination, score in sorted(scores.items(), key=lambda item: item[1], reverse=True)
+            if score > 0
+        ]
+        if discovered:
+            return discovered[:6]
+        return ["曼谷", "清迈", "东京", "大阪", "首尔", "三亚"]
+
+    async def _context_for_destination(
+        self,
+        search_tool: BaseTool,
+        fetch_tool: BaseTool,
+        origin_city: str,
+        destination: str,
+    ) -> list[str]:
         snippets: list[str] = []
         urls: list[str] = []
-        seen_snippets: set[str] = set()
-        for category, queries in self._build_query_groups(origin_city).items():
-            category_seen: set[str] = set()
-            for query in queries:
-                logger.info("Scout searching category=%s query=%s", category, query)
-                result = await search_tool.execute(WebSearchInput(query=query, max_results=8))
-                for item in self._items_from_result(result):
-                    key = self._result_key(item)
-                    if key in category_seen:
-                        continue
-                    category_seen.add(key)
-                    snippet = self._snippet_from_item(item)
-                    if snippet not in seen_snippets:
-                        seen_snippets.add(snippet)
-                        snippets.append(snippet)
-                    url = str(item.get("url", ""))
-                    if url.startswith(("http://", "https://")):
-                        urls.append(url)
+        seen: set[str] = set()
+        for query in self._destination_queries(origin_city, destination):
+            logger.info("Scout searching destination=%s query=%s", destination, query)
+            result = await search_tool.execute(WebSearchInput(query=query, max_results=8))
+            for item in self._items_from_result(result):
+                key = self._result_key(item)
+                if key in seen:
+                    continue
+                seen.add(key)
+                snippets.append(self._snippet_from_item(item))
+                url = str(item.get("url", ""))
+                if url.startswith(("http://", "https://")):
+                    urls.append(url)
 
-        for url in self._top_urls(urls, limit=3):
-            logger.info("Scout fetching URL: %s", url)
+        for url in self._top_urls(urls, limit=2):
+            logger.info("Scout fetching destination=%s URL=%s", destination, url)
             result = await fetch_tool.execute(WebFetchInput(url=url, max_chars=3000))
             if not result.success:
-                logger.warning("Scout skipped failed URL: %s error=%s", url, result.error)
+                logger.warning(
+                    "Scout skipped failed destination=%s URL=%s error=%s",
+                    destination,
+                    url,
+                    result.error,
+                )
                 continue
             if isinstance(result.data, dict):
                 text = str(result.data.get("text", ""))
                 if text:
                     snippets.append(f"Fetched page\n{url}\n{text}")
+        return snippets
 
-        source_note = (
-            f"价格参考自 {date.today().isoformat()} Tavily 搜索结果，"
-            "实际价格请以订票平台为准"
-        )
-        parse_result = await parser_tool.execute(
-            PriceParserInput(
-                text="\n\n".join([*snippets, f"Source note: {source_note}"]),
-                origin_city=origin_city,
-                max_price_cny=max_price,
-            )
-        )
-        if not parse_result.success:
-            logger.warning("Scout price parsing failed: %s", parse_result.error)
-            return []
-        raw_deals = parse_result.data if isinstance(parse_result.data, list) else []
+    def _validated_deals(
+        self,
+        raw_deals: list[object],
+        destination: str,
+        source_note: str,
+    ) -> list[Deal]:
         deals: list[Deal] = []
         for item in raw_deals:
             if not isinstance(item, dict):
                 continue
             deal = Deal.model_validate(item)
+            if not self._matches_destination(deal.destination_city, destination):
+                logger.info(
+                    "Scout skipped parsed deal destination=%s for target=%s",
+                    deal.destination_city,
+                    destination,
+                )
+                continue
             notes = deal.notes or source_note
             if "Tavily" not in notes:
                 notes = f"{notes}；{source_note}"
             deals.append(deal.model_copy(update={"notes": notes}))
-        return deals
+        return sorted(deals, key=lambda deal: (deal.price_cny_fen, deal.departure_date))
 
-    def _build_query_groups(self, origin_city: str) -> dict[str, list[str]]:
-        return {
-            "international_budget_airlines": [
-                f"{origin_city} 飞 曼谷 特价",
-                f"{origin_city} 飞 清迈 机票",
-                f"{origin_city} 飞 东京 廉航",
-                f"cheap flights from {origin_city} May 2026",
-            ],
-            "airline_promotions": [
-                f"{origin_city} 春秋航空 特价",
-                f"{origin_city} 亚洲航空 促销",
-            ],
-            "train_discounts": [
-                f"{origin_city} 高铁 特价票 学生票 折扣",
-            ],
-            "weekend_trips": [
-                f"{origin_city} 周末 短途旅行 低价推荐",
-            ],
-        }
+    def _discovery_queries(self, origin_city: str) -> list[str]:
+        return [
+            f"{origin_city} 五一 低价出行 旅游推荐",
+            f"{origin_city} 周末 短途旅行 低价推荐",
+            f"{origin_city} 出发 特价机票 2026年5月",
+            f"{origin_city} 春秋航空 亚洲航空 特价 目的地",
+        ]
 
-    def _snippets_from_result(self, result: ToolOutput) -> list[str]:
-        return [self._snippet_from_item(item) for item in self._items_from_result(result)]
+    def _destination_queries(self, origin_city: str, destination: str) -> list[str]:
+        aliases = list(DESTINATION_ALIASES.get(destination, {destination}))
+        english_alias = next(
+            (alias for alias in aliases if alias.isascii() and len(alias) > 3),
+            destination,
+        )
+        return [
+            f"{origin_city} 飞 {destination} 特价",
+            f"{origin_city} 飞 {destination} 机票",
+            f"{origin_city} {destination} 廉航 促销",
+            f"{origin_city} 春秋航空 {destination} 特价",
+            f"{origin_city} 亚洲航空 {destination} 促销",
+            f"cheap flights from {origin_city} to {english_alias} May 2026",
+        ]
 
     def _items_from_result(self, result: ToolOutput) -> list[dict[str, object]]:
         if not result.success or not isinstance(result.data, list):
@@ -121,17 +210,6 @@ class ScoutAgent(BaseAgent):
         content = str(item.get("content", "")).strip().casefold()
         return f"{title}|{content[:160]}"
 
-    def _urls_from_result(self, result: ToolOutput) -> list[str]:
-        if not result.success or not isinstance(result.data, list):
-            return []
-        snippets: list[str] = []
-        for item in result.data:
-            if isinstance(item, dict):
-                url = str(item.get("url", ""))
-                if url.startswith(("http://", "https://")):
-                    snippets.append(url)
-        return snippets
-
     def _top_urls(self, urls: list[str], limit: int) -> list[str]:
         seen: set[str] = set()
         unique: list[str] = []
@@ -143,3 +221,8 @@ class ScoutAgent(BaseAgent):
             if len(unique) >= limit:
                 break
         return unique
+
+    def _matches_destination(self, parsed_destination: str, target_destination: str) -> bool:
+        parsed = parsed_destination.casefold()
+        aliases = DESTINATION_ALIASES.get(target_destination, {target_destination})
+        return any(alias.casefold() in parsed or parsed in alias.casefold() for alias in aliases)
