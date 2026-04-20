@@ -9,7 +9,12 @@ def deduplicate_deals(deals: Iterable[Deal]) -> list[Deal]:
     seen: set[tuple[str, str, str, int]] = set()
     unique_deals: list[Deal] = []
     for deal in deals:
-        key = (deal.origin_city, deal.destination_city, deal.departure_date.isoformat(), deal.price_cny_fen)
+        key = (
+            deal.origin_city,
+            deal.destination_city,
+            deal.departure_date.isoformat(),
+            deal.price_cny_fen,
+        )
         if key in seen:
             continue
         seen.add(key)
