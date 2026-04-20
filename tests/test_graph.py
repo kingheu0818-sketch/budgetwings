@@ -38,8 +38,18 @@ class FakeAnalyst:
 
 
 class FakeGuide:
-    async def generate(self, deal: Deal, persona_type: PersonaType, days: int = 2) -> str:
-        return f"# {deal.destination_city}\n\nPersona: {persona_type.value}\n"
+    async def generate(
+        self,
+        deal: Deal,
+        persona_type: PersonaType,
+        days: int = 2,
+        knowledge_context: str | None = None,
+    ) -> str:
+        return (
+            f"# {deal.destination_city}\n\n"
+            f"Persona: {persona_type.value}\n"
+            f"{knowledge_context or ''}"
+        )
 
 
 def make_deal(
@@ -77,6 +87,7 @@ def test_graph_declares_expected_nodes(tmp_path: Path) -> None:
         "scout_node",
         "validate_node",
         "analyst_node",
+        "retrieve_node",
         "guide_node",
         "save_node",
         "retry_node",

@@ -17,6 +17,7 @@ from agents.validator import validate_deals
 from config import Settings, get_settings
 from models.deal import Deal
 from models.persona import PersonaType
+from rag.knowledge_base import KnowledgeBase
 from tools.price_parser import PriceParserTool
 from tools.web_fetch import WebFetchTool
 from tools.web_search import WebSearchTool
@@ -31,6 +32,7 @@ class PipelineState(TypedDict):
     raw_deals: list[Deal]
     validated_deals: list[Deal]
     ranked_deals: list[Deal]
+    knowledge_context: dict[str, str]
     guides: dict[str, str]
     errors: list[str]
     retry_count: int
@@ -52,7 +54,21 @@ class AnalystLike(Protocol):
 
 
 class GuideLike(Protocol):
-    async def generate(self, deal: Deal, persona_type: PersonaType, days: int = 2) -> str:
+    async def generate(
+        self,
+        deal: Deal,
+        persona_type: PersonaType,
+        days: int = 2,
+        knowledge_context: str | None = None,
+    ) -> str:
+        ...
+
+
+class KnowledgeLike(Protocol):
+    def search(self, query: str, top_k: int = 5) -> list[str]:
+        ...
+
+    def add_deal_history(self, deal: Deal) -> None:
         ...
 
 
@@ -61,6 +77,7 @@ class GraphPipeline:
         "scout_node",
         "validate_node",
         "analyst_node",
+        "retrieve_node",
         "guide_node",
         "save_node",
         "retry_node",
@@ -72,10 +89,12 @@ class GraphPipeline:
         analyst: AnalystLike,
         guide: GuideLike,
         output_root: Path = Path("data"),
+        knowledge_base: KnowledgeLike | None = None,
     ) -> None:
         self.scout = scout
         self.analyst = analyst
         self.guide = guide
+        self.knowledge_base = knowledge_base
         self.output_root = output_root
         self.app: Any = self._build_graph().compile()
 
@@ -160,12 +179,31 @@ class GraphPipeline:
             }
         return {"ranked_deals": ranked}
 
+    async def retrieve_node(self, state: PipelineState) -> dict[str, dict[str, str] | list[str]]:
+        if self.knowledge_base is None:
+            return {"knowledge_context": {}}
+        knowledge_context: dict[str, str] = {}
+        errors = list(state["errors"])
+        for deal in state["ranked_deals"][:3]:
+            try:
+                chunks = self.knowledge_base.search(deal.destination_city, top_k=5)
+            except Exception as exc:
+                logger.exception("Knowledge retrieval failed for deal id=%s", deal.id)
+                errors.append(f"retrieve_node failed for {deal.id}: {exc}")
+                continue
+            knowledge_context[deal.id] = "\n\n".join(chunks)
+        return {"knowledge_context": knowledge_context, "errors": errors}
+
     async def guide_node(self, state: PipelineState) -> dict[str, dict[str, str] | list[str]]:
         guides: dict[str, str] = {}
         errors = list(state["errors"])
         for deal in state["ranked_deals"][:3]:
             try:
-                guides[deal.id] = await self.guide.generate(deal, state["persona"])
+                guides[deal.id] = await self.guide.generate(
+                    deal,
+                    state["persona"],
+                    knowledge_context=state["knowledge_context"].get(deal.id, ""),
+                )
             except Exception as exc:
                 logger.exception("Guide node failed for deal id=%s", deal.id)
                 errors.append(f"guide_node failed for {deal.id}: {exc}")
@@ -174,6 +212,7 @@ class GraphPipeline:
     async def save_node(self, state: PipelineState) -> dict[str, list[str]]:
         self._write_deals(state["ranked_deals"], self.output_root / "deals")
         self._write_guides(state["guides"], self.output_root / "guides")
+        self._store_deal_history(state["ranked_deals"])
         if not state["raw_deals"]:
             return {"errors": [*state["errors"], "no raw deals found after retry"]}
         if state["raw_deals"] and not state["validated_deals"]:
@@ -195,6 +234,7 @@ class GraphPipeline:
             "raw_deals": [],
             "validated_deals": [],
             "ranked_deals": [],
+            "knowledge_context": {},
             "guides": {},
             "errors": [*state["errors"], message],
         }
@@ -207,6 +247,7 @@ class GraphPipeline:
         graph.add_node("scout_node", self.scout_node)
         graph.add_node("validate_node", self.validate_node)
         graph.add_node("analyst_node", self.analyst_node)
+        graph.add_node("retrieve_node", self.retrieve_node)
         graph.add_node("guide_node", self.guide_node)
         graph.add_node("save_node", self.save_node)
         graph.add_node("retry_node", self.retry_node)
@@ -231,7 +272,8 @@ class GraphPipeline:
             },
         )
         graph.add_edge("retry_node", "scout_node")
-        graph.add_edge("analyst_node", "guide_node")
+        graph.add_edge("analyst_node", "retrieve_node")
+        graph.add_edge("retrieve_node", "guide_node")
         graph.add_edge("guide_node", "save_node")
         graph.add_edge("save_node", END)
         return graph
@@ -263,6 +305,7 @@ class GraphPipeline:
             "raw_deals": [],
             "validated_deals": [],
             "ranked_deals": [],
+            "knowledge_context": {},
             "guides": {},
             "errors": [],
             "retry_count": 0,
@@ -291,6 +334,15 @@ class GraphPipeline:
             paths.append(output_path)
         return paths
 
+    def _store_deal_history(self, deals: list[Deal]) -> None:
+        if self.knowledge_base is None:
+            return
+        for deal in deals:
+            try:
+                self.knowledge_base.add_deal_history(deal)
+            except Exception:
+                logger.exception("Failed to store deal history id=%s", deal.id)
+
 
 def build_graph_pipeline(settings: Settings | None = None) -> GraphPipeline:
     resolved = settings or get_settings()
@@ -300,5 +352,19 @@ def build_graph_pipeline(settings: Settings | None = None) -> GraphPipeline:
     parser = PriceParserTool(llm)
     scout = ScoutAgent(llm, [search, fetch, parser])
     analyst = AnalystAgent(llm, [])
-    guide = GuideAgent(llm, [search])
-    return GraphPipeline(scout=scout, analyst=analyst, guide=guide)
+    knowledge_base = _build_knowledge_base()
+    guide = GuideAgent(llm, [search], knowledge_base=knowledge_base)
+    return GraphPipeline(
+        scout=scout,
+        analyst=analyst,
+        guide=guide,
+        knowledge_base=knowledge_base,
+    )
+
+
+def _build_knowledge_base() -> KnowledgeBase | None:
+    try:
+        return KnowledgeBase()
+    except Exception:
+        logger.exception("Knowledge base unavailable; continuing without RAG")
+        return None

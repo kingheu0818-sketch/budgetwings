@@ -1,10 +1,16 @@
 from __future__ import annotations
 
+import logging
+from typing import Protocol
+
 from agents.base import BaseAgent
-from llm.base import LLMError
+from llm.base import LLMAdapter, LLMError
 from models.deal import Deal
 from models.persona import PersonaType
+from tools.base import BaseTool
 from tools.web_search import WebSearchInput
+
+logger = logging.getLogger(__name__)
 
 PERSONA_INSTRUCTIONS: dict[PersonaType, str] = {
     PersonaType.WORKER: (
@@ -20,12 +26,41 @@ PERSONA_INSTRUCTIONS: dict[PersonaType, str] = {
 }
 
 
+class KnowledgeSearchLike(Protocol):
+    def search(self, query: str, top_k: int = 5) -> list[str]:
+        ...
+
+
 class GuideAgent(BaseAgent):
     name = "guide"
 
-    async def generate(self, deal: Deal, persona_type: PersonaType, days: int = 2) -> str:
+    def __init__(
+        self,
+        llm: LLMAdapter,
+        tools: list[BaseTool],
+        knowledge_base: KnowledgeSearchLike | None = None,
+    ) -> None:
+        super().__init__(llm, tools)
+        self.knowledge_base = knowledge_base
+
+    async def generate(
+        self,
+        deal: Deal,
+        persona_type: PersonaType,
+        days: int = 2,
+        knowledge_context: str | None = None,
+    ) -> str:
+        resolved_knowledge = knowledge_context
+        if resolved_knowledge is None:
+            resolved_knowledge = self._knowledge_context(deal.destination_city)
         search_context = await self._destination_context(deal.destination_city)
-        prompt = self._build_prompt(deal, persona_type, days, search_context)
+        prompt = self._build_prompt(
+            deal,
+            persona_type,
+            days,
+            search_context,
+            resolved_knowledge,
+        )
         try:
             return await self.llm.chat(
                 [
@@ -47,14 +82,32 @@ class GuideAgent(BaseAgent):
             return ""
         return "\n".join(str(item) for item in result.data)
 
+    def _knowledge_context(self, destination_city: str) -> str:
+        if self.knowledge_base is None:
+            return ""
+        try:
+            chunks = self.knowledge_base.search(destination_city, top_k=5)
+        except Exception:
+            logger.exception("Knowledge base search failed for destination=%s", destination_city)
+            return ""
+        return "\n\n".join(chunks)
+
     def _build_prompt(
         self,
         deal: Deal,
         persona_type: PersonaType,
         days: int,
         context: str,
+        knowledge_context: str,
     ) -> str:
         price_yuan = deal.price_cny_fen // 100
+        rag_section = ""
+        if knowledge_context:
+            rag_section = (
+                f"以下是关于{deal.destination_city}的参考信息，请基于这些信息生成攻略，"
+                "不要编造与参考信息矛盾的内容：\n"
+                f"{knowledge_context}\n\n"
+            )
         return (
             f"Generate a {days}-day Markdown travel guide.\n"
             f"Origin: {deal.origin_city}\n"
@@ -67,6 +120,7 @@ class GuideAgent(BaseAgent):
             f"{PERSONA_INSTRUCTIONS[persona_type]}\n\n"
             "Include visa notes, weather/clothing, morning/afternoon/evening plans, "
             "accommodation, food, local transport, budget, warnings, and saving tips.\n\n"
+            f"{rag_section}"
             f"Latest web context:\n{context}"
         )
 
