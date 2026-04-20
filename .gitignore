@@ -7,6 +7,7 @@ pytest-cache-files-*/
 .ruff_cache/
 .mypy_cache/
 .venv/
+.conda-py311/
 .env
 .env.*
 !.env.example

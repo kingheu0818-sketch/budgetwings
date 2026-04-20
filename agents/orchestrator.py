@@ -28,15 +28,16 @@ class Orchestrator:
     async def run(
         self,
         city: str,
-        persona_type: PersonaType,
+        persona_type: PersonaType | str,
         top_n: int = 10,
         output_root: Path = Path("data"),
     ) -> list[Deal]:
+        persona = PersonaType(persona_type)
         raw_deals = await self.scout.discover(city)
-        top_deals = await self.analyst.analyze(raw_deals, persona_type, top_n=top_n)
+        top_deals = await self.analyst.analyze(raw_deals, persona, top_n=top_n)
         self._write_deals(top_deals, output_root / "deals")
         for deal in top_deals[: min(3, len(top_deals))]:
-            guide_markdown = await self.guide.generate(deal, persona_type)
+            guide_markdown = await self.guide.generate(deal, persona)
             self._write_guide(deal, guide_markdown, output_root / "guides")
         return top_deals
 

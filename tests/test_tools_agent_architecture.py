@@ -93,6 +93,16 @@ def test_web_search_tool_uses_backend() -> None:
     assert result.data[0]["url"] == "https://example.com"
 
 
+def test_web_search_tool_falls_back_without_tavily_key() -> None:
+    settings = Settings.model_construct(tavily_api_key=None)
+    result = asyncio.run(WebSearchTool(settings).execute(WebSearchInput(query="深圳 特价机票")))
+
+    assert result.success is True
+    assert isinstance(result.data, list)
+    assert result.data[0]["title"] == "fallback"
+    assert "深圳 特价机票" in result.data[0]["content"]
+
+
 def test_web_fetch_tool_extracts_text() -> None:
     result = asyncio.run(FakeFetchTool().execute(WebFetchInput(url="https://example.com")))
 

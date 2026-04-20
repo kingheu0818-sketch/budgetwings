@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import json
 import re
-from datetime import date
+from datetime import date, timedelta
 from typing import Any
 
 from llm.base import LLMAdapter
@@ -57,8 +57,8 @@ class PriceParserTool(BaseTool):
 
     def _deal_from_payload(self, item: dict[str, Any]) -> Deal:
         price_cny = int(item.get("price_cny", 0))
-        departure = item.get("departure_date") or date.today().isoformat()
-        transport = item.get("transport_mode", "flight")
+        departure = self._departure_date(item.get("departure_date"))
+        transport = self._transport_mode(item.get("transport_mode", "flight"))
         return Deal.model_validate(
             {
                 "source": str(item.get("source", "agent")),
@@ -68,7 +68,7 @@ class PriceParserTool(BaseTool):
                 "destination_code": item.get("destination_code"),
                 "destination_country": item.get("destination_country"),
                 "price_cny_fen": price_cny * 100,
-                "transport_mode": TransportMode(str(transport)),
+                "transport_mode": transport,
                 "departure_date": departure,
                 "return_date": item.get("return_date"),
                 "is_round_trip": bool(item.get("is_round_trip", False)),
@@ -78,6 +78,22 @@ class PriceParserTool(BaseTool):
                 "notes": item.get("notes"),
             }
         )
+
+    def _transport_mode(self, value: Any) -> TransportMode:
+        try:
+            return TransportMode(str(value).lower())
+        except ValueError:
+            return TransportMode.FLIGHT
+
+    def _departure_date(self, value: Any) -> str:
+        today = date.today()
+        try:
+            parsed = date.fromisoformat(str(value))
+        except ValueError:
+            parsed = today + timedelta(days=14)
+        if parsed < today:
+            parsed = today + timedelta(days=14)
+        return parsed.isoformat()
 
     def _extract_json(self, response: str) -> str:
         fenced = re.search(r"```(?:json)?\s*(.*?)\s*```", response, re.DOTALL)
@@ -89,5 +105,6 @@ class PriceParserTool(BaseTool):
         return (
             "Extract low-price travel deals as strict JSON. Return either a list or "
             "an object with a deals list. Each item must include origin_city, "
-            "destination_city, price_cny, transport_mode, departure_date, and booking_url."
+            "destination_city, price_cny, transport_mode, departure_date, and booking_url. "
+            f"Today is {date.today().isoformat()}; departure_date must be a future ISO date."
         )

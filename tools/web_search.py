@@ -24,7 +24,16 @@ class WebSearchTool(BaseTool):
     async def execute(self, input: ToolInput) -> ToolOutput:
         params = WebSearchInput.model_validate(input)
         if not self.settings.tavily_api_key:
-            return ToolOutput(success=False, error="TAVILY_API_KEY is not configured")
+            return ToolOutput(
+                success=True,
+                data=[
+                    {
+                        "title": "fallback",
+                        "url": "",
+                        "content": f"请基于你的知识回答关于 {params.query} 的问题",
+                    }
+                ],
+            )
         try:
             data = await self._search(params.query, params.max_results)
         except Exception as exc:
