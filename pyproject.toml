@@ -53,6 +53,7 @@ select = ["E", "F", "I", "UP", "B"]
 [tool.mypy]
 python_version = "3.11"
 packages = ["bot", "engine", "models", "scraper", "config"]
+exclude = ["^\\.pytest_cache/", "^pytest-cache-files-"]
 ignore_missing_imports = true
 warn_unused_ignores = true
 warn_return_any = true

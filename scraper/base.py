@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import logging
 import time
 from abc import ABC, abstractmethod
 from typing import Any
@@ -9,6 +10,8 @@ import httpx
 
 from config import Settings, get_settings
 from models.deal import Deal
+
+logger = logging.getLogger(__name__)
 
 
 class ScraperRequestError(RuntimeError):
@@ -52,9 +55,33 @@ class BaseScraper(ABC):
                 last_error = exc
                 if attempt >= self.settings.scraper_retry_attempts:
                     break
+                logger.warning(
+                    "scraper request failed; retrying",
+                    extra={
+                        "attempt": attempt,
+                        "max_attempts": self.settings.scraper_retry_attempts,
+                        "scraper": self.name,
+                        "url": url,
+                    },
+                    exc_info=True,
+                )
                 await asyncio.sleep(self.settings.scraper_retry_backoff_seconds * attempt)
 
         msg = f"{self.name} request failed after {self.settings.scraper_retry_attempts} attempts"
+        exc_info = (
+            (type(last_error), last_error, last_error.__traceback__)
+            if last_error is not None
+            else None
+        )
+        logger.error(
+            "scraper request failed permanently",
+            extra={
+                "max_attempts": self.settings.scraper_retry_attempts,
+                "scraper": self.name,
+                "url": url,
+            },
+            exc_info=exc_info,
+        )
         raise ScraperRequestError(msg) from last_error
 
     async def _respect_rate_limit(self) -> None:

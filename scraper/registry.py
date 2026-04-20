@@ -5,6 +5,7 @@ from collections.abc import Iterable
 
 from models.deal import Deal
 from scraper.base import BaseScraper
+from scraper.sources.kiwi import KiwiScraper
 
 logger = logging.getLogger(__name__)
 
@@ -32,3 +33,7 @@ def build_registry(scrapers: Iterable[BaseScraper]) -> ScraperRegistry:
     for scraper in scrapers:
         registry.register(scraper)
     return registry
+
+
+def build_default_registry() -> ScraperRegistry:
+    return build_registry([KiwiScraper()])

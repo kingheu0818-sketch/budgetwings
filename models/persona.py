@@ -42,7 +42,7 @@ class WorkerFilterParams(PersonaFilterParams):
 class StudentFilterParams(PersonaFilterParams):
     persona_type: PersonaType = PersonaType.STUDENT
     max_one_way_price_cny_fen: int = 50_000
-    min_departure_days_ahead: int = 30
+    min_departure_days_ahead: int = 0
     max_departure_days_ahead: int = 90
     include_red_eye: bool = True
     max_layover_minutes: int | None = None
