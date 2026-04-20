@@ -1,13 +1,17 @@
 from __future__ import annotations
 
+import logging
 from collections import defaultdict, deque
 from collections.abc import Iterable
 
 from agents.base import BaseAgent
+from db.analytics import is_historical_low
 from engine.deal_ranker import rank_deals
 from engine.persona_filter import filter_deals
 from models.deal import Deal
 from models.persona import PersonaType, default_persona_filter
+
+logger = logging.getLogger(__name__)
 
 
 class AnalystAgent(BaseAgent):
@@ -25,7 +29,8 @@ class AnalystAgent(BaseAgent):
         limited = self._limit_origin_destination(filtered, max_per_pair=2)
         ranked = rank_deals(limited, persona)
         diversified = self._diversify_destinations(ranked)
-        return diversified[:top_n]
+        annotated = self._annotate_historical_lows(diversified)
+        return annotated[:top_n]
 
     def _deduplicate(self, deals: Iterable[Deal]) -> list[Deal]:
         seen: set[tuple[str, str, str, int]] = set()
@@ -72,3 +77,21 @@ class AnalystAgent(BaseAgent):
                 if grouped[destination]:
                     diversified.append(grouped[destination].popleft())
         return diversified
+
+    def _annotate_historical_lows(self, deals: list[Deal]) -> list[Deal]:
+        annotated: list[Deal] = []
+        for deal in deals:
+            try:
+                historical_low = is_historical_low(deal)
+            except Exception:
+                logger.exception("Failed to check historical low for deal id=%s", deal.id)
+                annotated.append(deal)
+                continue
+            if not historical_low:
+                annotated.append(deal)
+                continue
+            notes = deal.notes or ""
+            if "历史低价" not in notes:
+                notes = f"{notes}\n🔥 历史低价".strip()
+            annotated.append(deal.model_copy(update={"notes": notes}))
+        return annotated

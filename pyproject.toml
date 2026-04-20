@@ -44,6 +44,7 @@ packages = [
   "bot",
   "engine",
   "llm",
+  "db",
   "models",
   "rag",
   "scraper",
@@ -65,7 +66,7 @@ select = ["E", "F", "I", "UP", "B"]
 
 [tool.mypy]
 python_version = "3.11"
-packages = ["agents", "bot", "engine", "llm", "models", "rag", "scraper", "tools", "config"]
+packages = ["agents", "bot", "db", "engine", "llm", "models", "rag", "scraper", "tools", "config"]
 exclude = ["^\\.pytest_cache/", "^pytest-cache-files-"]
 ignore_missing_imports = true
 warn_unused_ignores = true

@@ -1,0 +1,21 @@
+services:
+  pipeline:
+    build: .
+    env_file:
+      - .env
+    environment:
+      PIPELINE_CITIES: ${PIPELINE_CITIES:-深圳,上海,北京,广州,成都,杭州}
+      PIPELINE_PERSONA: ${PIPELINE_PERSONA:-worker}
+      PIPELINE_TOP: ${PIPELINE_TOP:-10}
+      PIPELINE_INTERVAL_SECONDS: ${PIPELINE_INTERVAL_SECONDS:-86400}
+    volumes:
+      - ./data:/app/data
+    command: ["python", "scripts/pipeline_loop.py"]
+
+  bot:
+    build: .
+    env_file:
+      - .env
+    volumes:
+      - ./data:/app/data
+    command: ["python", "-m", "bot.main"]

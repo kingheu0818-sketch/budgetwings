@@ -1,0 +1,16 @@
+.git/
+.conda-py311/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+pytest-cache-files-/
+.ruff_cache/
+.mypy_cache/
+.tmp/
+.env
+.env.*
+data/knowledge/
+data/budgetwings.db
+web/.next/
+web/node_modules/
+web/.npm-cache/

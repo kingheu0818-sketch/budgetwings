@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
 from collections.abc import Sequence
@@ -15,6 +16,8 @@ from agents.orchestrator import build_llm
 from agents.scout import ScoutAgent
 from agents.validator import validate_deals
 from config import Settings, get_settings
+from db.models import SearchLog
+from db.repository import save_deals, save_search_log
 from models.deal import Deal
 from models.persona import PersonaType
 from rag.knowledge_base import KnowledgeBase
@@ -105,15 +108,38 @@ class GraphPipeline:
         top_n: int = 10,
         output_root: Path | None = None,
     ) -> list[Deal]:
+        persona = PersonaType(persona_type)
+        search_log = SearchLog(
+            city=city,
+            persona=persona.value,
+            started_at=datetime.now(UTC),
+            status="started",
+        )
+        await asyncio.to_thread(save_search_log, search_log)
         original_output_root = self.output_root
         if output_root is not None:
             self.output_root = output_root
         try:
-            result = await self.app.ainvoke(self._initial_state(city, persona_type, top_n))
+            result = await self.app.ainvoke(self._initial_state(city, persona, top_n))
+        except Exception as exc:
+            search_log.finished_at = datetime.now(UTC)
+            search_log.status = "failed"
+            search_log.error_messages = str(exc)
+            await asyncio.to_thread(save_search_log, search_log)
+            raise
         finally:
             self.output_root = original_output_root
         ranked = result.get("ranked_deals", [])
-        return list(ranked) if isinstance(ranked, list) else []
+        deals = list(ranked) if isinstance(ranked, list) else []
+        errors = result.get("errors", [])
+        search_log.finished_at = datetime.now(UTC)
+        search_log.status = "success"
+        search_log.deal_count = len(deals)
+        search_log.error_messages = (
+            json.dumps(errors, ensure_ascii=False) if isinstance(errors, list) and errors else None
+        )
+        await asyncio.to_thread(save_search_log, search_log)
+        return deals
 
     async def run_many(
         self,
@@ -136,6 +162,7 @@ class GraphPipeline:
             output_base = output_root or self.output_root
             ranked = await self.analyst.analyze(all_deals, PersonaType(persona_type), top_n=top_n)
             self._write_deals(ranked, output_base / "deals")
+            await asyncio.to_thread(save_deals, ranked)
             return ranked
         return all_deals
 
@@ -159,6 +186,15 @@ class GraphPipeline:
 
     async def validate_node(self, state: PipelineState) -> dict[str, list[Deal] | list[str]]:
         result = validate_deals(state["raw_deals"])
+        if result.invalid_deals:
+            invalid_deals = [item[0] for item in result.invalid_deals]
+            validation_errors = {item[0].id: item[1] for item in result.invalid_deals}
+            await asyncio.to_thread(
+                save_deals,
+                invalid_deals,
+                is_valid=False,
+                validation_errors=validation_errors,
+            )
         return {
             "validated_deals": result.valid_deals,
             "errors": [*state["errors"], *result.errors],
@@ -212,6 +248,7 @@ class GraphPipeline:
     async def save_node(self, state: PipelineState) -> dict[str, list[str]]:
         self._write_deals(state["ranked_deals"], self.output_root / "deals")
         self._write_guides(state["guides"], self.output_root / "guides")
+        await asyncio.to_thread(save_deals, state["ranked_deals"])
         self._store_deal_history(state["ranked_deals"])
         if not state["raw_deals"]:
             return {"errors": [*state["errors"], "no raw deals found after retry"]}

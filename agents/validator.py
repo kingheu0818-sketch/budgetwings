@@ -16,17 +16,20 @@ CHINA_ALIASES = {"china", "cn", "中国", "中國", "prc", "mainland china"}
 class ValidationResult(NamedTuple):
     valid_deals: list[Deal]
     errors: list[str]
+    invalid_deals: list[tuple[Deal, list[str]]]
 
 
 def validate_deals(deals: Iterable[Deal], today: date | None = None) -> ValidationResult:
     reference_date = today or date.today()
     valid_deals: list[Deal] = []
     errors: list[str] = []
+    invalid_deals: list[tuple[Deal, list[str]]] = []
     for deal in deals:
         deal_errors = validate_deal(deal, reference_date)
         if deal_errors:
             reason = "; ".join(deal_errors)
             errors.append(f"{deal.id}: {reason}")
+            invalid_deals.append((deal, deal_errors))
             logger.warning(
                 "Discarded invalid deal id=%s route=%s->%s reason=%s",
                 deal.id,
@@ -36,7 +39,7 @@ def validate_deals(deals: Iterable[Deal], today: date | None = None) -> Validati
             )
             continue
         valid_deals.append(deal)
-    return ValidationResult(valid_deals=valid_deals, errors=errors)
+    return ValidationResult(valid_deals=valid_deals, errors=errors, invalid_deals=invalid_deals)
 
 
 def validate_deal(deal: Deal, today: date | None = None) -> list[str]:
