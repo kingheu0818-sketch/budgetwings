@@ -5,6 +5,7 @@ from importlib import import_module
 from typing import Any
 
 from llm.base import ChatMessage, LLMAdapter, LLMError, ToolCallResult, ToolSchema
+from observability.tracer import LLMTracer
 
 
 class OpenAIAdapter(LLMAdapter):
@@ -14,8 +15,9 @@ class OpenAIAdapter(LLMAdapter):
         model: str,
         timeout_seconds: float = 60.0,
         base_url: str | None = None,
+        tracer: LLMTracer | None = None,
     ) -> None:
-        super().__init__(model=model, timeout_seconds=timeout_seconds)
+        super().__init__(model=model, timeout_seconds=timeout_seconds, tracer=tracer)
         try:
             openai = import_module("openai")
             client_kwargs: dict[str, Any] = {
@@ -34,6 +36,10 @@ class OpenAIAdapter(LLMAdapter):
         messages: list[ChatMessage],
         tools: list[ToolSchema] | None = None,
     ) -> str:
+        span_id, started_at = self._start_llm_span(
+            "openai.chat",
+            {"messages": messages, "tools": tools or []},
+        )
         try:
             response = await asyncio.wait_for(
                 self._client.chat.completions.create(
@@ -44,16 +50,28 @@ class OpenAIAdapter(LLMAdapter):
                 timeout=self.timeout_seconds,
             )
         except Exception as exc:
+            self._end_llm_span(span_id, {"error": str(exc)}, started_at=started_at)
             msg = "OpenAI chat request failed"
             raise LLMError(msg) from exc
 
-        return self._message_content_to_text(response.choices[0].message)
+        output = self._message_content_to_text(response.choices[0].message)
+        self._end_llm_span(
+            span_id,
+            {"content": output},
+            token_usage=self._usage_to_dict(response),
+            started_at=started_at,
+        )
+        return output
 
     async def chat_with_tools(
         self,
         messages: list[ChatMessage],
         tools: list[ToolSchema],
     ) -> ToolCallResult:
+        span_id, started_at = self._start_llm_span(
+            "openai.chat_with_tools",
+            {"messages": messages, "tools": tools},
+        )
         try:
             response = await asyncio.wait_for(
                 self._client.chat.completions.create(
@@ -65,15 +83,23 @@ class OpenAIAdapter(LLMAdapter):
                 timeout=self.timeout_seconds,
             )
         except Exception as exc:
+            self._end_llm_span(span_id, {"error": str(exc)}, started_at=started_at)
             msg = "OpenAI function-calling request failed"
             raise LLMError(msg) from exc
 
         message = response.choices[0].message
-        return {
+        result = {
             "provider": "openai",
             "content": self._message_content_to_text(message),
             "tool_calls": [self._tool_call_to_dict(call) for call in message.tool_calls or []],
         }
+        self._end_llm_span(
+            span_id,
+            result,
+            token_usage=self._usage_to_dict(response),
+            started_at=started_at,
+        )
+        return result
 
     def _tool_call_to_dict(self, call: Any) -> dict[str, Any]:
         return {
@@ -107,3 +133,16 @@ class OpenAIAdapter(LLMAdapter):
         if parsed is not None:
             return str(parsed)
         return ""
+
+    def _usage_to_dict(self, response: Any) -> dict[str, int] | None:
+        usage = getattr(response, "usage", None)
+        if usage is None:
+            return None
+        prompt_tokens = getattr(usage, "prompt_tokens", None)
+        completion_tokens = getattr(usage, "completion_tokens", None)
+        total_tokens = getattr(usage, "total_tokens", None)
+        return {
+            "prompt_tokens": int(prompt_tokens or 0),
+            "completion_tokens": int(completion_tokens or 0),
+            "total_tokens": int(total_tokens or 0),
+        }

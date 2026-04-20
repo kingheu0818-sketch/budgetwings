@@ -27,7 +27,8 @@ dependencies = [
   "langchain-core>=0.3.0",
   "sqlmodel>=0.0.22",
   "lancedb>=0.17.0",
-  "sentence-transformers>=3.0.0"
+  "sentence-transformers>=3.0.0",
+  "langfuse>=2.0.0"
 ]
 
 [project.optional-dependencies]
@@ -46,6 +47,7 @@ packages = [
   "llm",
   "db",
   "models",
+  "observability",
   "rag",
   "scraper",
   "scraper.sources",
@@ -66,7 +68,19 @@ select = ["E", "F", "I", "UP", "B"]
 
 [tool.mypy]
 python_version = "3.11"
-packages = ["agents", "bot", "db", "engine", "llm", "models", "rag", "scraper", "tools", "config"]
+packages = [
+  "agents",
+  "bot",
+  "db",
+  "engine",
+  "llm",
+  "models",
+  "observability",
+  "rag",
+  "scraper",
+  "tools",
+  "config"
+]
 exclude = ["^\\.pytest_cache/", "^pytest-cache-files-"]
 ignore_missing_imports = true
 warn_unused_ignores = true

@@ -10,6 +10,7 @@ pytest-cache-files-/
 .env
 .env.*
 data/knowledge/
+data/traces/
 data/budgetwings.db
 web/.next/
 web/node_modules/

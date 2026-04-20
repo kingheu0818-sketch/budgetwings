@@ -15,6 +15,7 @@ pytest-cache-files-*/
 data/*.db
 data/budgetwings.db
 data/knowledge/
+data/traces/
 web/.next/
 web/out/
 web/node_modules/

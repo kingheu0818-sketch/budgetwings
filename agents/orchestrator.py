@@ -15,6 +15,7 @@ from llm.claude import ClaudeAdapter
 from llm.openai_adapter import OpenAIAdapter
 from models.deal import Deal
 from models.persona import PersonaType
+from observability.tracer import LLMTracer
 from tools.price_parser import PriceParserTool
 from tools.web_fetch import WebFetchTool
 from tools.web_search import WebSearchTool
@@ -70,7 +71,7 @@ class Orchestrator:
         return output_path
 
 
-def build_llm(settings: Settings | None = None) -> LLMAdapter:
+def build_llm(settings: Settings | None = None, tracer: LLMTracer | None = None) -> LLMAdapter:
     resolved = settings or get_settings()
     if resolved.llm_provider == "claude":
         if not resolved.anthropic_api_key:
@@ -80,6 +81,7 @@ def build_llm(settings: Settings | None = None) -> LLMAdapter:
             api_key=resolved.anthropic_api_key,
             model=resolved.llm_model,
             timeout_seconds=resolved.llm_timeout_seconds,
+            tracer=tracer,
         )
     if not resolved.openai_api_key:
         msg = "OPENAI_API_KEY is required for OpenAI provider"
@@ -89,6 +91,7 @@ def build_llm(settings: Settings | None = None) -> LLMAdapter:
         model=resolved.llm_model,
         timeout_seconds=resolved.llm_timeout_seconds,
         base_url=resolved.openai_base_url,
+        tracer=tracer,
     )
 
 
