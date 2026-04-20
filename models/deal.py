@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import date, datetime, timezone
+from datetime import UTC, date, datetime
 from enum import StrEnum
 from typing import Self
 from uuid import uuid4
@@ -23,17 +23,23 @@ class Deal(BaseModel):
     origin_city: str = Field(min_length=1)
     origin_code: str | None = Field(default=None, description="Airport, station, or city code.")
     destination_city: str = Field(min_length=1)
-    destination_code: str | None = Field(default=None, description="Airport, station, or city code.")
+    destination_code: str | None = Field(
+        default=None,
+        description="Airport, station, or city code.",
+    )
     destination_country: str | None = None
     price_cny_fen: int = Field(ge=0, description="Price stored in CNY fen.")
     transport_mode: TransportMode
     departure_date: date
     return_date: date | None = None
     is_round_trip: bool = False
-    operator: str | None = Field(default=None, description="Airline, rail operator, or bus company.")
+    operator: str | None = Field(
+        default=None,
+        description="Airline, rail operator, or bus company.",
+    )
     booking_url: HttpUrl
     source_url: HttpUrl | None = None
-    scraped_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    scraped_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
     expires_at: datetime | None = None
     notes: str | None = None
 
@@ -45,7 +51,7 @@ class Deal(BaseModel):
         if value.tzinfo is None or value.utcoffset() is None:
             msg = "datetime fields must be timezone-aware"
             raise ValueError(msg)
-        return value.astimezone(timezone.utc)
+        return value.astimezone(UTC)
 
     @model_validator(mode="after")
     def validate_dates(self) -> Self:
