@@ -1,0 +1,22 @@
+[
+  {"city": "Bangkok", "country": "Thailand", "visa_type": "visa_free", "summary": "Chinese passport holders may be eligible for visa-free entry under current Thailand policy; verify before booking."},
+  {"city": "Chiang Mai", "country": "Thailand", "visa_type": "visa_free", "summary": "Same Thailand entry policy as Bangkok; check official updates before departure."},
+  {"city": "Phuket", "country": "Thailand", "visa_type": "visa_free", "summary": "Thailand policy may allow visa-free stays for eligible Chinese travelers."},
+  {"city": "Tokyo", "country": "Japan", "visa_type": "visa_required", "summary": "Japan usually requires a visa for Chinese passport holders unless special exemptions apply."},
+  {"city": "Osaka", "country": "Japan", "visa_type": "visa_required", "summary": "Japan visa should be prepared before booking nonrefundable tickets."},
+  {"city": "Seoul", "country": "South Korea", "visa_type": "visa_required", "summary": "South Korea generally requires a visa for Chinese passport holders."},
+  {"city": "Jeju", "country": "South Korea", "visa_type": "conditional_visa_free", "summary": "Jeju has special visa-free policies for some direct-entry travelers; verify route rules."},
+  {"city": "Singapore", "country": "Singapore", "visa_type": "visa_free", "summary": "Chinese passport holders may be eligible for visa-free entry under current bilateral policy."},
+  {"city": "Kuala Lumpur", "country": "Malaysia", "visa_type": "visa_free", "summary": "Malaysia may allow visa-free entry for eligible Chinese travelers; verify duration limits."},
+  {"city": "Penang", "country": "Malaysia", "visa_type": "visa_free", "summary": "Same Malaysia entry policy as Kuala Lumpur."},
+  {"city": "Bali", "country": "Indonesia", "visa_type": "visa_on_arrival", "summary": "Indonesia commonly offers visa on arrival or e-VOA options; verify official rules."},
+  {"city": "Manila", "country": "Philippines", "visa_type": "visa_required", "summary": "Philippines generally requires a visa for Chinese passport holders."},
+  {"city": "Ho Chi Minh City", "country": "Vietnam", "visa_type": "visa_required", "summary": "Vietnam often requires an e-visa or visa for Chinese passport holders."},
+  {"city": "Da Nang", "country": "Vietnam", "visa_type": "visa_required", "summary": "Vietnam e-visa should be checked before travel."},
+  {"city": "Hong Kong", "country": "China", "visa_type": "permit_required", "summary": "Mainland Chinese travelers usually need an Exit-Entry Permit endorsement."},
+  {"city": "Macau", "country": "China", "visa_type": "permit_required", "summary": "Mainland Chinese travelers usually need an Exit-Entry Permit endorsement."},
+  {"city": "Taipei", "country": "China", "visa_type": "permit_required", "summary": "Mainland Chinese travelers need applicable Taiwan travel permits and endorsements."},
+  {"city": "Chengdu", "country": "China", "visa_type": "domestic", "summary": "Domestic travel. Bring valid ID for transport and hotel check-in."},
+  {"city": "Sanya", "country": "China", "visa_type": "domestic", "summary": "Domestic travel. Bring valid ID for transport and hotel check-in."},
+  {"city": "Chongqing", "country": "China", "visa_type": "domestic", "summary": "Domestic travel. Bring valid ID for transport and hotel check-in."}
+]

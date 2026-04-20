@@ -3,6 +3,7 @@ __pycache__/
 *.egg-info/
 .pytest_cache/
 pytest-cache-files-*/
+.tmp/
 .ruff_cache/
 .mypy_cache/
 .venv/

@@ -1,40 +1,27 @@
 # BudgetWings
 
-BudgetWings is an open-source low-cost travel intelligence project. It collects cheap flight, rail, bus, and community-submitted travel deals, then turns those deals into short trip guides for two core personas: workers with tight weekend schedules and students with flexible time but lower budgets.
+BudgetWings is an AI Agent project for low-cost travel intelligence. Instead of
+depending on one flight API or brittle crawlers, it uses an orchestrated set of
+LLM-powered agents and tools to search the web, extract cheap travel deals,
+rank them for different personas, and generate short travel guides.
 
-The MVP follows the product requirements in `PRD.md`: API-first data collection, Pydantic data models, YAML destination guide templates, persona-aware filtering, and GitHub Actions automation.
+The v2 architecture is described in `ARCHITECTURE.md`.
 
-## What is included now
+## Agent Architecture
 
-- Python 3.11+ project configuration in `pyproject.toml`
-- Pydantic v2 models for deals, guide templates, and personas
-- Async scraper base class with 30s timeout, 3 retries, user-agent, and simple rate limiting
-- Environment-based configuration through `pydantic-settings`
-- Initial repository structure from PRD 7.2
-- Sample guide templates under `guides/`
-- Pull request CI for `ruff`, `mypy`, and `pytest`
+- `agents/`: Scout, Analyst, Guide, and Orchestrator.
+- `llm/`: provider-neutral LLM adapters for Claude and OpenAI.
+- `tools/`: web search, web fetch, price parsing, weather, currency, visa, and holiday tools.
+- `models/`: stable Pydantic data contracts for deals, guides, and personas.
+- `prompts/`: system prompt templates for the three core agents.
+- `scraper/`: legacy crawler layer kept for compatibility.
 
-## Repository layout
-
-```text
-scraper/                  Data collection interfaces and source scrapers
-engine/                   Ranking, guide generation, persona filtering, notification logic
-models/                   Pydantic data contracts
-guides/                   YAML destination guide templates
-web/                      Future static web frontend
-bot/                      Future Telegram bot
-data/deals/               Generated deal JSON files
-docs/                     Contributor and data-source documentation
-.github/workflows/        CI, scrape, and deploy workflows
-```
-
-## Quick start
+## Quick Start
 
 ```bash
 python -m venv .venv
 . .venv/bin/activate
 python -m pip install -e ".[dev]"
-pytest
 ```
 
 If dependency downloads are slow in mainland China, use the Tsinghua PyPI mirror:
@@ -48,29 +35,53 @@ On Windows PowerShell:
 ```powershell
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1
-python -m pip install -e ".[dev]"
-pytest
-```
-
-Windows PowerShell with the Tsinghua mirror:
-
-```powershell
 python -m pip install -i https://pypi.tuna.tsinghua.edu.cn/simple -e ".[dev]"
 ```
 
 ## Configuration
 
-Copy `.env.example` to `.env` and fill only the keys you need. API keys must come from environment variables and should never be committed.
+Copy `.env.example` to `.env` and set the provider you want to use.
 
-Common variables:
+Claude:
 
-- `KIWI_API_KEY`
-- `SKYSCANNER_API_KEY`
-- `WEATHER_API_KEY`
-- `EXCHANGE_RATE_API_KEY`
-- `TELEGRAM_BOT_TOKEN`
+```env
+BUDGETWINGS_LLM_PROVIDER=claude
+BUDGETWINGS_LLM_MODEL=claude-sonnet-4-20250514
+ANTHROPIC_API_KEY=your_key
+TAVILY_API_KEY=your_key
+```
 
-## Development checks
+OpenAI:
+
+```env
+BUDGETWINGS_LLM_PROVIDER=openai
+BUDGETWINGS_LLM_MODEL=gpt-4o-mini
+OPENAI_API_KEY=your_key
+TAVILY_API_KEY=your_key
+```
+
+All API keys must come from environment variables. Do not commit `.env`.
+
+## CLI
+
+Run the full Scout -> Analyst -> Guide pipeline:
+
+```bash
+python cli.py run --city 深圳 --persona worker --top 10
+```
+
+Generate a guide for a previously stored deal:
+
+```bash
+python cli.py guide --deal-id DEAL_ID --persona student
+```
+
+Outputs are written to:
+
+- `data/deals/YYYY-MM-DD.json`
+- `data/guides/DEAL_ID.md`
+
+## Development Checks
 
 ```bash
 ruff check .
@@ -80,4 +91,5 @@ pytest
 
 ## Contributing
 
-Read `docs/CONTRIBUTING.md` for contribution rules. Destination guides are plain YAML files, so non-code contributions are welcome too.
+Read `docs/CONTRIBUTING.md`. Contributions can add new tools, prompt templates,
+LLM adapters, visa policies, or destination guide logic.
