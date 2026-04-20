@@ -18,6 +18,12 @@ mypy .
 pytest
 ```
 
+If PyPI access is slow, install through the Tsinghua mirror:
+
+```bash
+python -m pip install -i https://pypi.tuna.tsinghua.edu.cn/simple -e ".[dev]"
+```
+
 ## Safety rules
 
 - Do not commit API keys, cookies, tokens, or personal data.
