@@ -29,7 +29,10 @@ class Settings(BaseSettings):
     kiwi_api_key: str | None = Field(default=None, validation_alias="KIWI_API_KEY")
     telegram_bot_token: str | None = Field(default=None, validation_alias="TELEGRAM_BOT_TOKEN")
     weather_api_key: str | None = Field(default=None, validation_alias="WEATHER_API_KEY")
-    exchange_rate_api_key: str | None = Field(default=None, validation_alias="EXCHANGE_RATE_API_KEY")
+    exchange_rate_api_key: str | None = Field(
+        default=None,
+        validation_alias="EXCHANGE_RATE_API_KEY",
+    )
 
 
 @lru_cache
