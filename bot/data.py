@@ -1,0 +1,58 @@
+from __future__ import annotations
+
+import json
+from pathlib import Path
+
+from engine.deal_ranker import rank_deals
+from models.deal import Deal
+from models.persona import PersonaType, default_persona_filter
+
+DEALS_DIR = Path("data/deals")
+
+
+def latest_deals_file(deals_dir: Path = DEALS_DIR) -> Path | None:
+    files = sorted(deals_dir.glob("*.json"), reverse=True)
+    return files[0] if files else None
+
+
+def load_latest_deals(deals_dir: Path = DEALS_DIR) -> list[Deal]:
+    path = latest_deals_file(deals_dir)
+    if path is None:
+        return []
+    payload = json.loads(path.read_text(encoding="utf-8"))
+    if not isinstance(payload, list):
+        return []
+    return [Deal.model_validate(item) for item in payload if isinstance(item, dict)]
+
+
+def ranked_deals(persona_type: PersonaType, deals: list[Deal] | None = None) -> list[Deal]:
+    source_deals = deals if deals is not None else load_latest_deals()
+    return rank_deals(source_deals, default_persona_filter(persona_type))
+
+
+def search_deals(destination: str, persona_type: PersonaType) -> list[Deal]:
+    normalized = destination.casefold()
+    return [
+        deal
+        for deal in ranked_deals(persona_type)
+        if normalized in deal.destination_city.casefold()
+        or (deal.destination_country and normalized in deal.destination_country.casefold())
+    ]
+
+
+def deals_within_budget(total_budget_yuan: int, persona_type: PersonaType) -> list[Deal]:
+    budget_fen = total_budget_yuan * 100
+    return [deal for deal in ranked_deals(persona_type) if deal.price_cny_fen <= budget_fen]
+
+
+def format_deal_message(deal: Deal) -> str:
+    price_yuan = deal.price_cny_fen // 100
+    fire = " 🔥" if price_yuan < 500 else ""
+    date_label = deal.departure_date.isoformat()
+    return (
+        f"{fire}{deal.origin_city} -> {deal.destination_city}\n"
+        f"Price: CNY {price_yuan}\n"
+        f"Date: {date_label}\n"
+        f"Transport: {deal.transport_mode.value}\n"
+        f"Book: {deal.booking_url}"
+    )

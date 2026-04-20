@@ -1,0 +1,72 @@
+name: Daily Run
+
+on:
+  schedule:
+    - cron: "0 0 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  daily:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install Python dependencies
+        run: python -m pip install -e .
+
+      - name: Run agent pipeline when keys are configured
+        env:
+          BUDGETWINGS_LLM_PROVIDER_SECRET: ${{ secrets.BUDGETWINGS_LLM_PROVIDER }}
+          BUDGETWINGS_LLM_MODEL_SECRET: ${{ secrets.BUDGETWINGS_LLM_MODEL }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          TAVILY_API_KEY: ${{ secrets.TAVILY_API_KEY }}
+        run: |
+          if [ -n "$TAVILY_API_KEY" ] && { [ -n "$ANTHROPIC_API_KEY" ] || [ -n "$OPENAI_API_KEY" ]; }; then
+            if [ -n "$BUDGETWINGS_LLM_PROVIDER_SECRET" ]; then
+              export BUDGETWINGS_LLM_PROVIDER="$BUDGETWINGS_LLM_PROVIDER_SECRET"
+            elif [ -n "$OPENAI_API_KEY" ] && [ -z "$ANTHROPIC_API_KEY" ]; then
+              export BUDGETWINGS_LLM_PROVIDER="openai"
+            else
+              export BUDGETWINGS_LLM_PROVIDER="claude"
+            fi
+            if [ -n "$BUDGETWINGS_LLM_MODEL_SECRET" ]; then
+              export BUDGETWINGS_LLM_MODEL="$BUDGETWINGS_LLM_MODEL_SECRET"
+            fi
+            python cli.py run --city 深圳 --persona worker --top 20
+          else
+            echo "LLM/search keys not configured; skipping agent pipeline."
+          fi
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Build static website
+        working-directory: web
+        run: |
+          npm install
+          npm run build
+
+      - name: Commit data changes
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data
+          if git diff --cached --quiet; then
+            echo "No data changes to commit."
+          else
+            git commit -m "data: update daily agent outputs"
+            git push
+          fi

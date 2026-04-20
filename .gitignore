@@ -12,3 +12,8 @@ pytest-cache-files-*/
 !.env.example
 .DS_Store
 data/*.db
+web/.next/
+web/out/
+web/node_modules/
+web/.npm-cache/
+web/dev-server*.log

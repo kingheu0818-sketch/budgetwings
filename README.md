@@ -81,6 +81,40 @@ Outputs are written to:
 - `data/deals/YYYY-MM-DD.json`
 - `data/guides/DEAL_ID.md`
 
+## Telegram Bot
+
+The bot reads local JSON files from `data/deals/` and never calls an LLM.
+
+```bash
+TELEGRAM_BOT_TOKEN=your_token python -m bot.main
+```
+
+Commands:
+
+- `/start`
+- `/mode worker`
+- `/mode student`
+- `/deals`
+- `/deals 清迈`
+- `/budget 2000`
+
+## Static Website
+
+The web app is a Next.js 14 static export. It reads `data/deals/*.json` and
+`data/guides/*.md` at build time.
+
+```bash
+cd web
+npm install
+npm run dev
+```
+
+Build static files:
+
+```bash
+npm run build
+```
+
 ## Development Checks
 
 ```bash
