@@ -1,0 +1,51 @@
+destination:
+  city: Tokyo
+  country: Japan
+  tags: [Japan, city walk, food, shopping]
+
+visa:
+  cn_passport: "Japan visa requirements vary by traveler status; verify before booking."
+  tips: "Prepare itinerary and accommodation documents early if a visa is required."
+
+weather:
+  best_months: [3, 4, 10, 11]
+  rainy_season: [6, 7]
+  current: "{{ dynamic_weather_data }}"
+
+transport:
+  from_airport: "Use airport rail or bus depending on arrival airport and accommodation area."
+  in_city: "JR, Tokyo Metro, and walking cover most short trips."
+
+highlights:
+  free:
+    - Senso-ji and Asakusa walk
+    - Shibuya crossing
+    - Tokyo Metropolitan Government Building observatory
+  paid:
+    - TeamLab or museum ticket
+    - Day trip rail pass if needed
+
+food:
+  budget:
+    - Convenience store breakfast
+    - Standing soba or ramen
+  midrange:
+    - Sushi set lunch
+    - Izakaya dinner
+
+accommodation:
+  budget: "Capsule hotels or hostels near transit lines."
+  midrange: "Business hotels around Ueno, Asakusa, or Ikebukuro."
+
+itinerary_templates:
+  2day:
+    day1: "Asakusa -> Ueno -> Akihabara -> Tokyo Station night view"
+    day2: "Meiji Shrine -> Harajuku -> Shibuya -> return"
+  3day:
+    day1: "Asakusa -> Ueno -> Akihabara"
+    day2: "Tsukiji outer market -> Ginza -> Odaiba"
+    day3: "Meiji Shrine -> Harajuku -> Shibuya"
+
+budget_estimate:
+  student_2day: "CNY 600-1000 excluding tickets"
+  worker_2day: "CNY 1200-2200 excluding tickets"
