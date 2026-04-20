@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import date, datetime, timezone
+from datetime import UTC, date, datetime
 
 from models.deal import Deal, TransportMode
 from models.guide import GuideTemplate
@@ -22,7 +22,7 @@ def test_deal_stores_price_in_cny_fen() -> None:
             "is_round_trip": True,
             "operator": "Example Air",
             "booking_url": "https://example.com/book",
-            "scraped_at": datetime(2026, 4, 20, tzinfo=timezone.utc),
+            "scraped_at": datetime(2026, 4, 20, tzinfo=UTC),
         }
     )
 
