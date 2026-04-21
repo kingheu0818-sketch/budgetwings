@@ -1,20 +1,60 @@
 # BudgetWings
 
-BudgetWings is an AI agent project for low-cost travel intelligence. Instead of
-depending on one flight API or brittle crawlers, it uses an orchestrated set of
-LLM-powered agents and tools to search the web, extract cheap travel deals,
-rank them for different personas, and generate short travel guides.
+> An LLM-powered travel deal agent with three layers of defense against model
+> unreliability.
 
-The v2 architecture is described in `ARCHITECTURE.md`.
+BudgetWings finds cheap travel deals via a web-searching AI agent, then turns
+them into ranked recommendations and short guides. The interesting part is not
+just that it works, but that each reliability upgrade ships with a quantified
+before/after benchmark instead of a hand-wavy claim.
+
+## Why this project
+
+LLMs are great at generating plausible text. They are not great at being honest
+about numbers, URLs, or destinations. Building a real product on top of them
+requires **multiple independent layers of defense**: schema enforcement,
+evidence grounding, and human-selectable fallback strategies, each validated
+with benchmarks.
+
+This project documents that process end-to-end:
+
+| Layer | Problem | Result |
+|---|---|---|
+| [Structured Output (T2)](data/bench/T2_before_after.md) | LLM returns malformed JSON under noisy output formats | Parse success 46.7% -> **100%** |
+| [Evidence Validation (T3)](data/bench/T3_before_after.md) | LLM invents prices and destinations even in clean JSON | Hallucination rejection **80%**, false positives **0%** |
+| [Agentic Loop (T4-B)](data/bench/T4B_legacy_vs_agentic.md) | Hardcoded Scout pipeline cannot adapt its search path | Agentic finds **+1 destination** with **-55%** tool calls in mock bench |
+
+**Full walkthrough: [`CASE_STUDY.md`](CASE_STUDY.md)**
+
+## Architecture
+
+```text
+User / Cron
+    |
+    v
+Scout -> EvidenceValidator -> Analyst -> Guide
+    |            |                |         |
+    v            v                v         v
+web_search   grounded Deal    ranked Deal  Markdown guide
+web_fetch    validation       selection    output
+price_parser
+```
+
+The long-form architecture and roadmap live in [`ARCHITECTURE.md`](ARCHITECTURE.md).
 
 ## Project Structure
 
+- `CASE_STUDY.md`: portfolio-style walkthrough of T2, T3, and T4-B
 - `agents/`: Scout, Analyst, Guide, Orchestrator, and LangGraph pipeline
+- `archive/`: historical v1 docs and legacy crawler code kept for reference
+- `data/bench/`: benchmark JSON and before/after reports
 - `llm/`: provider-neutral LLM adapters for Claude and OpenAI
 - `tools/`: web search, fetch, price parsing, weather, currency, visa, holiday
 - `models/`: stable Pydantic data contracts
 - `db/`: SQLite persistence and analytics
 - `rag/`: local knowledge base for guide generation
+- `docs/DECISIONS.md`: architecture decision records for major trade-offs
+- `scripts/`: benchmark harnesses and maintenance scripts
 - `mcp_server/`: MCP server entry for Claude Desktop and other clients
 
 ## Quick Start
