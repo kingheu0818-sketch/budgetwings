@@ -1,14 +1,18 @@
 from __future__ import annotations
 
-import json
-import re
+import logging
 from datetime import date, timedelta
-from typing import Any
+from time import perf_counter
+from typing import Any, Literal
 from urllib.parse import urlparse
 
-from llm.base import LLMAdapter
+from pydantic import BaseModel, ConfigDict, Field, ValidationError
+
+from llm.base import ChatMessage, LLMAdapter
 from models.deal import Deal, TransportMode
 from tools.base import BaseTool, ToolInput, ToolOutput
+
+logger = logging.getLogger(__name__)
 
 CITY_ROUTE_CODES: dict[str, str] = {
     "北京": "bjs",
@@ -36,6 +40,42 @@ class PriceParserInput(ToolInput):
     max_price_cny: int = 1500
 
 
+class ExtractedDeal(BaseModel):
+    """Intermediate schema exposed to LLM for structured extraction.
+
+    Deliberately simpler than models.Deal: uses yuan not fen, uses strings
+    for dates the LLM will format, and exposes fields the LLM can actually
+    fill from Tavily snippets.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    origin_city: str = Field(..., description="出发城市中文名,如 '深圳'")
+    destination_city: str = Field(..., description="目的地城市中文名,如 '曼谷'")
+    price_cny: int = Field(
+        ...,
+        ge=0,
+        description="单程票价(元人民币),必须来源于原文中明确出现的数字",
+    )
+    transport_mode: Literal["flight", "train", "bus", "carpool"]
+    departure_date: str = Field(..., description="YYYY-MM-DD 格式,必须是今天之后的未来日期")
+    return_date: str | None = None
+    is_round_trip: bool = False
+    operator: str | None = Field(None, description="航司/铁路/大巴公司,如'春秋航空'")
+    booking_url: str | None = None
+    source_url: str | None = None
+    evidence_text: str | None = Field(
+        None,
+        description="支撑价格结论的原文证据片段,应包含明确价格数字与路线信息",
+    )
+
+
+class ExtractedDealList(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    deals: list[ExtractedDeal]
+
+
 class PriceParserTool(BaseTool):
     name = "price_parser"
     description = "Extract structured low-price travel deals from unstructured web text."
@@ -48,67 +88,120 @@ class PriceParserTool(BaseTool):
         params = PriceParserInput.model_validate(input)
         if self.llm is None:
             return ToolOutput(success=False, error="LLM adapter is required for price_parser")
-        try:
-            response = await self.llm.chat(
-                [
-                    {"role": "system", "content": self._system_prompt()},
-                    {
-                        "role": "user",
-                        "content": (
-                            f"Origin city: {params.origin_city or 'unknown'}\n"
-                            f"Max one-way price CNY: {params.max_price_cny}\n\n"
-                            f"{params.text}"
-                        ),
-                    },
-                ]
+
+        tracer = getattr(self.llm, "tracer", None)
+        span_id: str | None = None
+        started_at = perf_counter()
+        if tracer is not None:
+            span_id = tracer.start_span(
+                tracer.current_trace_id,
+                "price_parser.execute",
+                {
+                    "origin_city": params.origin_city,
+                    "max_price_cny": params.max_price_cny,
+                    "text_preview": params.text[:500],
+                },
             )
-            deals = self.parse_llm_output(response)
-        except Exception as exc:
-            return ToolOutput(success=False, error=str(exc))
-        return ToolOutput(success=True, data=[deal.model_dump(mode="json") for deal in deals])
 
-    def parse_llm_output(self, response: str) -> list[Deal]:
-        payload = json.loads(self._extract_json(response))
-        raw_deals = payload.get("deals", payload) if isinstance(payload, dict) else payload
-        if not isinstance(raw_deals, list):
-            msg = "price parser expected a JSON list or object with deals"
-            raise ValueError(msg)
+        llm_structured_call_ok = False
+        pydantic_validation_ok = False
+        pydantic_error_count = 0
         deals: list[Deal] = []
-        for item in raw_deals:
-            if not isinstance(item, dict):
-                continue
-            deal = self._deal_from_payload(item)
-            if deal is not None:
-                deals.append(deal)
-        return deals
+        evidence_missing_count = 0
+        output: ToolOutput
 
-    def _deal_from_payload(self, item: dict[str, Any]) -> Deal | None:
-        price_cny = self._price_cny(item.get("price_cny"))
-        if price_cny is None or price_cny <= 0:
-            return None
-        origin_city = str(item.get("origin_city", "unknown"))
-        destination_city = str(item.get("destination_city", "unknown"))
-        departure = self._departure_date(item.get("departure_date"))
-        transport = self._transport_mode(item.get("transport_mode", "flight"))
-        return Deal.model_validate(
-            {
-                "source": str(item.get("source", "agent")),
-                "origin_city": origin_city,
-                "origin_code": item.get("origin_code"),
-                "destination_city": destination_city,
-                "destination_code": item.get("destination_code"),
-                "destination_country": item.get("destination_country"),
-                "price_cny_fen": price_cny * 100,
-                "transport_mode": transport,
-                "departure_date": departure,
-                "return_date": item.get("return_date"),
-                "is_round_trip": bool(item.get("is_round_trip", False)),
-                "operator": item.get("operator"),
-                "booking_url": self._booking_url(item, origin_city, destination_city),
-                "source_url": item.get("source_url"),
-                "notes": item.get("notes"),
-            }
+        try:
+            payload = await self.llm.extract_structured(
+                self._messages(params),
+                schema=ExtractedDealList.model_json_schema(),
+                schema_name="deal_list",
+                schema_description=(
+                    "Extract low-price travel deals from noisy web snippets as strict JSON."
+                ),
+            )
+            llm_structured_call_ok = True
+            extracted = ExtractedDealList.model_validate(payload)
+            pydantic_validation_ok = True
+            evidence_missing_count = sum(
+                1 for item in extracted.deals if not (item.evidence_text or "").strip()
+            )
+            extracted_deals = [
+                self._deal_from_extracted(item, params.origin_city, params.max_price_cny)
+                for item in extracted.deals
+            ]
+            deals = [deal for deal in extracted_deals if deal is not None]
+            output = ToolOutput(success=True, data=[deal.model_dump(mode="json") for deal in deals])
+        except ValidationError as exc:
+            pydantic_error_count = len(exc.errors())
+            output = ToolOutput(success=False, error=str(exc))
+        except Exception as exc:
+            output = ToolOutput(success=False, error=str(exc))
+
+        logger.info(
+            "price_parser result",
+            extra={
+                "samples_in": 1,
+                "deals_out": len(deals),
+                "llm_structured_call_ok": llm_structured_call_ok,
+                "pydantic_validation_ok": pydantic_validation_ok,
+                "pydantic_error_count": pydantic_error_count,
+                "evidence_missing_count": evidence_missing_count,
+            },
         )
+        if tracer is not None and span_id is not None:
+            tracer.end_span(
+                span_id,
+                output_data={
+                    "success": output.success,
+                    "deals_out": len(deals),
+                    "error": output.error,
+                },
+                duration_ms=(perf_counter() - started_at) * 1000,
+            )
+        return output
+
+    def _messages(self, params: PriceParserInput) -> list[ChatMessage]:
+        return [
+            {"role": "system", "content": self._system_prompt()},
+            {
+                "role": "user",
+                "content": (
+                    f"Origin city: {params.origin_city or 'unknown'}\n"
+                    f"Max one-way price CNY: {params.max_price_cny}\n\n"
+                    f"{params.text}"
+                ),
+            },
+        ]
+
+    def _deal_from_extracted(
+        self,
+        item: ExtractedDeal,
+        origin_city_hint: str | None,
+        max_price_cny: int,
+    ) -> Deal | None:
+        if item.price_cny <= 0 or item.price_cny > max_price_cny:
+            return None
+        origin_city = (item.origin_city or origin_city_hint or "unknown").strip() or "unknown"
+        destination_city = item.destination_city.strip() or "unknown"
+        return_date = self._return_date(item.return_date, item.departure_date, item.is_round_trip)
+        payload = {
+            "source": "agent",
+            "origin_city": origin_city,
+            "origin_code": None,
+            "destination_city": destination_city,
+            "destination_code": None,
+            "destination_country": None,
+            "price_cny_fen": item.price_cny * 100,
+            "transport_mode": self._transport_mode(item.transport_mode),
+            "departure_date": self._departure_date(item.departure_date),
+            "return_date": return_date,
+            "is_round_trip": item.is_round_trip,
+            "operator": item.operator,
+            "booking_url": self._booking_url(item, origin_city, destination_city),
+            "source_url": item.source_url,
+            "notes": None,
+        }
+        return Deal.model_validate(payload)
 
     def _transport_mode(self, value: Any) -> TransportMode:
         try:
@@ -116,24 +209,13 @@ class PriceParserTool(BaseTool):
         except ValueError:
             return TransportMode.FLIGHT
 
-    def _price_cny(self, value: Any) -> int | None:
-        if isinstance(value, bool):
-            return None
-        if isinstance(value, int | float):
-            return int(value)
-        text = str(value).strip()
-        if not text or "需确认" in text:
-            return None
-        match = re.search(r"\d+(?:\.\d+)?", text.replace(",", ""))
-        return int(float(match.group(0))) if match else None
-
     def _booking_url(
         self,
-        item: dict[str, Any],
+        item: ExtractedDeal,
         origin_city: str,
         destination_city: str,
     ) -> str:
-        booking_url = str(item.get("booking_url") or "").strip()
+        booking_url = (item.booking_url or "").strip()
         fallback = self._route_search_url(origin_city, destination_city)
         if not booking_url:
             return fallback or "https://example.com"
@@ -168,20 +250,34 @@ class PriceParserTool(BaseTool):
             parsed = today + timedelta(days=14)
         return parsed.isoformat()
 
-    def _extract_json(self, response: str) -> str:
-        fenced = re.search(r"```(?:json)?\s*(.*?)\s*```", response, re.DOTALL)
-        if fenced:
-            return fenced.group(1)
-        return response.strip()
+    def _return_date(
+        self,
+        value: str | None,
+        departure_value: str,
+        is_round_trip: bool,
+    ) -> str | None:
+        if not is_round_trip:
+            return None
+        departure = date.fromisoformat(self._departure_date(departure_value))
+        if value is None:
+            return (departure + timedelta(days=2)).isoformat()
+        try:
+            parsed = date.fromisoformat(value)
+        except ValueError:
+            parsed = departure + timedelta(days=2)
+        if parsed < departure:
+            parsed = departure + timedelta(days=2)
+        return parsed.isoformat()
 
     def _system_prompt(self) -> str:
         return (
-            "Extract low-price travel deals as strict JSON. Return either a list or "
-            "an object with a deals list. Each item must include origin_city, "
-            "destination_city, price_cny, transport_mode, departure_date, and booking_url. "
-            "Only extract deals that include an explicit numeric price in the source text; "
-            "do not estimate or invent prices. If a source has no concrete price, omit it "
-            "or mark it as 需确认 outside the deals list. Include airline/operator and "
-            "source_url when available. "
+            "Extract low-price travel deals as strict structured data. "
+            "Only include deals with an explicit numeric price stated in the source text. "
+            "Do not estimate, infer, or invent a price. "
+            "If no valid deal exists, return an empty deals list. "
+            "Prefer direct booking URLs when present; otherwise include the most relevant "
+            "route URL. "
+            "Fill evidence_text with the shortest quote-like snippet that proves the route "
+            "and price. "
             f"Today is {date.today().isoformat()}; departure_date must be a future ISO date."
         )

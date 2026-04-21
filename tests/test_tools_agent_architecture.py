@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import asyncio
-import json
 from datetime import date
 from decimal import Decimal
 from typing import Any
@@ -19,9 +18,14 @@ from tools.web_search import WebSearchInput, WebSearchTool
 
 
 class FakeLLM(LLMAdapter):
-    def __init__(self, response: str = "ok") -> None:
+    def __init__(
+        self,
+        response: str = "ok",
+        structured_response: dict[str, Any] | None = None,
+    ) -> None:
         super().__init__(model="fake")
         self.response = response
+        self.structured_response = structured_response or {"deals": []}
 
     async def chat(
         self,
@@ -36,6 +40,16 @@ class FakeLLM(LLMAdapter):
         tools: list[ToolSchema],
     ) -> ToolCallResult:
         return {"provider": "fake", "tool_calls": []}
+
+    async def extract_structured(
+        self,
+        messages: list[ChatMessage],
+        schema: dict[str, Any],
+        schema_name: str,
+        schema_description: str,
+    ) -> dict[str, Any]:
+        del messages, schema, schema_name, schema_description
+        return self.structured_response
 
 
 class FakeSearchTool(WebSearchTool):
@@ -113,22 +127,21 @@ def test_web_fetch_tool_extracts_text() -> None:
 
 
 def test_price_parser_tool_extracts_deals_with_fake_llm() -> None:
-    response = json.dumps(
-        {
-            "deals": [
-                {
-                    "source": "blog",
-                    "origin_city": "Shenzhen",
-                    "destination_city": "Bangkok",
-                    "price_cny": 199,
-                    "transport_mode": "flight",
-                    "departure_date": date.today().isoformat(),
-                    "booking_url": "https://example.com/book",
-                }
-            ]
-        }
-    )
-    tool = PriceParserTool(FakeLLM(response))
+    structured = {
+        "deals": [
+            {
+                "origin_city": "Shenzhen",
+                "destination_city": "Bangkok",
+                "price_cny": 199,
+                "transport_mode": "flight",
+                "departure_date": date.today().isoformat(),
+                "booking_url": "https://example.com/book",
+                "source_url": "https://example.com/source",
+                "evidence_text": "Shenzhen to Bangkok CNY 199",
+            }
+        ]
+    }
+    tool = PriceParserTool(FakeLLM(structured_response=structured))
 
     result = asyncio.run(tool.execute(PriceParserInput(text="深圳飞曼谷 199")))
 

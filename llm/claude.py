@@ -102,6 +102,75 @@ class ClaudeAdapter(LLMAdapter):
         )
         return result
 
+    async def extract_structured(
+        self,
+        messages: list[ChatMessage],
+        schema: dict[str, Any],
+        schema_name: str,
+        schema_description: str,
+    ) -> dict[str, Any]:
+        span_id, started_at = self._start_llm_span(
+            "claude.extract_structured",
+            {
+                "messages": messages,
+                "schema_name": schema_name,
+                "schema_description": schema_description,
+            },
+        )
+        system, user_messages = self._split_system_messages(messages)
+        tools = [
+            {
+                "name": schema_name,
+                "description": schema_description,
+                "input_schema": schema,
+            }
+        ]
+        try:
+            response = await asyncio.wait_for(
+                self._client.messages.create(
+                    model=self.model,
+                    max_tokens=4000,
+                    system=system or None,
+                    messages=user_messages,
+                    tools=tools,
+                    tool_choice={"type": "tool", "name": schema_name},
+                ),
+                timeout=self.timeout_seconds,
+            )
+        except Exception as exc:
+            self._end_llm_span(span_id, {"error": str(exc)}, started_at=started_at)
+            msg = "Claude structured extraction request failed"
+            raise LLMError(msg) from exc
+
+        structured: dict[str, Any] | None = None
+        for block in response.content:
+            if getattr(block, "type", None) != "tool_use":
+                continue
+            if getattr(block, "name", None) != schema_name:
+                continue
+            raw_input = getattr(block, "input", None)
+            if isinstance(raw_input, dict):
+                structured = raw_input
+                break
+
+        if structured is None:
+            self._end_llm_span(
+                span_id,
+                {"error": "Claude did not return the required tool_use block"},
+                token_usage=self._usage_to_dict(response),
+                started_at=started_at,
+            )
+            msg = "Claude did not return the required structured output"
+            raise LLMError(msg)
+
+        self._end_llm_span(
+            span_id,
+            structured,
+            token_usage=self._usage_to_dict(response),
+            started_at=started_at,
+        )
+        return structured
+
     def _block_to_dict(self, block: Any) -> dict[str, Any]:
         block_type = getattr(block, "type", "")
         if block_type == "tool_use":

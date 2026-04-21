@@ -16,6 +16,7 @@ import argparse
 import asyncio
 import json
 import os
+import re
 import sys
 from datetime import UTC, date, datetime, timedelta
 from pathlib import Path
@@ -378,10 +379,15 @@ def _destination_for_sample(sample: dict[str, Any]) -> str:
 
 def _recorded_price(sample: dict[str, Any]) -> int:
     text = str(sample.get("text", ""))
-    digits = "".join(ch for ch in text if ch.isdigit() or ch == " ")
-    parts = [part for part in digits.split() if part.isdigit()]
+    match = re.search(r"单程\s+(\d+)\s+元", text)
+    if match:
+        return int(match.group(1))
+    fallback_match = re.search(r"(\d{2,4})\s+元", text)
+    if fallback_match:
+        return int(fallback_match.group(1))
+    parts = re.findall(r"\d{2,4}", text)
     if parts:
-        return int(parts[-1])
+        return int(parts[0])
     return 299
 
 

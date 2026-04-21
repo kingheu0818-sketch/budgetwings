@@ -31,6 +31,16 @@ class FakeLLM(LLMAdapter):
     ) -> ToolCallResult:
         return {"tool_calls": []}
 
+    async def extract_structured(
+        self,
+        messages: list[ChatMessage],
+        schema: dict[str, object],
+        schema_name: str,
+        schema_description: str,
+    ) -> dict[str, object]:
+        del messages, schema, schema_name, schema_description
+        return {"deals": []}
+
 
 class FakeSearchTool(BaseTool):
     name = "web_search"

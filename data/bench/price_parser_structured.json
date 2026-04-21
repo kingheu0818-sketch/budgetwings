@@ -1,0 +1,120 @@
+{
+  "tag": "structured",
+  "timestamp": "2026-04-21T07:09:55.554778+00:00",
+  "provider": "mock",
+  "model": "bench-mock",
+  "mock_mode": true,
+  "total_samples": 15,
+  "success_count": 15,
+  "empty_result_count": 6,
+  "error_count": 0,
+  "total_deals_extracted": 9,
+  "pydantic_validation_failures": 0,
+  "per_sample": [
+    {
+      "sample_id": "clean_flight_shenzhen_bangkok",
+      "category": "clean",
+      "success": true,
+      "deal_count": 1,
+      "errors": []
+    },
+    {
+      "sample_id": "clean_train_guangzhou_sanya",
+      "category": "clean",
+      "success": true,
+      "deal_count": 1,
+      "errors": []
+    },
+    {
+      "sample_id": "clean_bus_hangzhou_haikou",
+      "category": "clean",
+      "success": true,
+      "deal_count": 1,
+      "errors": []
+    },
+    {
+      "sample_id": "noisy_multi_block_tokyo",
+      "category": "noise",
+      "success": true,
+      "deal_count": 1,
+      "errors": []
+    },
+    {
+      "sample_id": "noisy_prefixed_commentary_osaka",
+      "category": "noise",
+      "success": true,
+      "deal_count": 1,
+      "errors": []
+    },
+    {
+      "sample_id": "noisy_long_snippet_chiangmai",
+      "category": "noise",
+      "success": true,
+      "deal_count": 1,
+      "errors": []
+    },
+    {
+      "sample_id": "trap_last_year_post",
+      "category": "trap",
+      "success": true,
+      "deal_count": 0,
+      "errors": []
+    },
+    {
+      "sample_id": "trap_round_trip_price",
+      "category": "trap",
+      "success": true,
+      "deal_count": 0,
+      "errors": []
+    },
+    {
+      "sample_id": "trap_promo_range",
+      "category": "trap",
+      "success": true,
+      "deal_count": 0,
+      "errors": []
+    },
+    {
+      "sample_id": "empty_no_price",
+      "category": "empty",
+      "success": true,
+      "deal_count": 0,
+      "errors": []
+    },
+    {
+      "sample_id": "bad_unrelated_finance_news",
+      "category": "bad",
+      "success": true,
+      "deal_count": 0,
+      "errors": []
+    },
+    {
+      "sample_id": "bad_invalid_json_block",
+      "category": "bad",
+      "success": true,
+      "deal_count": 0,
+      "errors": []
+    },
+    {
+      "sample_id": "recorded_1",
+      "category": "recorded",
+      "success": true,
+      "deal_count": 1,
+      "errors": []
+    },
+    {
+      "sample_id": "recorded_2",
+      "category": "recorded",
+      "success": true,
+      "deal_count": 1,
+      "errors": []
+    },
+    {
+      "sample_id": "recorded_3",
+      "category": "recorded",
+      "success": true,
+      "deal_count": 1,
+      "errors": []
+    }
+  ]
+}

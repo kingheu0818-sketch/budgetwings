@@ -42,6 +42,16 @@ class LLMAdapter(ABC):
     ) -> ToolCallResult:
         """Send messages and return provider-specific tool-use metadata."""
 
+    @abstractmethod
+    async def extract_structured(
+        self,
+        messages: list[ChatMessage],
+        schema: dict[str, Any],
+        schema_name: str,
+        schema_description: str,
+    ) -> dict[str, Any]:
+        """Return a JSON object guaranteed to match `schema`, or raise LLMError."""
+
     def _start_llm_span(self, name: str, input_data: dict[str, Any]) -> tuple[str | None, float]:
         if self.tracer is None:
             return None, perf_counter()

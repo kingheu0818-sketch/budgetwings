@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import json
 from importlib import import_module
 from typing import Any
 
@@ -100,6 +101,68 @@ class OpenAIAdapter(LLMAdapter):
             started_at=started_at,
         )
         return result
+
+    async def extract_structured(
+        self,
+        messages: list[ChatMessage],
+        schema: dict[str, Any],
+        schema_name: str,
+        schema_description: str,
+    ) -> dict[str, Any]:
+        span_id, started_at = self._start_llm_span(
+            "openai.extract_structured",
+            {
+                "messages": messages,
+                "schema_name": schema_name,
+                "schema_description": schema_description,
+            },
+        )
+        try:
+            response = await asyncio.wait_for(
+                self._client.chat.completions.create(
+                    model=self.model,
+                    messages=messages,
+                    response_format={
+                        "type": "json_schema",
+                        "json_schema": {
+                            "name": schema_name,
+                            "schema": schema,
+                            "strict": True,
+                        },
+                    },
+                ),
+                timeout=self.timeout_seconds,
+            )
+        except Exception as exc:
+            self._end_llm_span(span_id, {"error": str(exc)}, started_at=started_at)
+            msg = "OpenAI structured extraction request failed"
+            raise LLMError(msg) from exc
+
+        message = response.choices[0].message
+        parsed = getattr(message, "parsed", None)
+        try:
+            if isinstance(parsed, dict):
+                structured = parsed
+            else:
+                content = self._message_content_to_text(message)
+                structured = json.loads(content)
+        except Exception as exc:
+            self._end_llm_span(
+                span_id,
+                {"error": f"Invalid structured JSON: {exc}"},
+                token_usage=self._usage_to_dict(response),
+                started_at=started_at,
+            )
+            msg = "OpenAI returned invalid structured JSON"
+            raise LLMError(msg) from exc
+
+        self._end_llm_span(
+            span_id,
+            structured,
+            token_usage=self._usage_to_dict(response),
+            started_at=started_at,
+        )
+        return structured
 
     def _tool_call_to_dict(self, call: Any) -> dict[str, Any]:
         return {
