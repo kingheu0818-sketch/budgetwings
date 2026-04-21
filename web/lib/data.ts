@@ -39,12 +39,17 @@ export function getGuideIds(): string[] {
 export function getGuideMarkdown(id: string): string {
   const deal = getDeal(id);
   const target = path.join(guidesDir, `${id}.md`);
+  const fallback = deal
+    ? buildFallbackGuide(deal)
+    : '# 攻略暂未生成\n\n这条路线还没有可展示的本地攻略。';
+
   if (!fs.existsSync(target)) {
-    return deal ? buildFallbackGuide(deal) : '# 攻略暂未生成\n\n这条线路还没有可展示的本地攻略。';
+    return fallback;
   }
+
   const markdown = fs.readFileSync(target, 'utf-8');
   if (looksCorrupted(markdown)) {
-    return deal ? buildFallbackGuide(deal) : '# 攻略暂未生成\n\n这条线路还没有可展示的本地攻略。';
+    return fallback;
   }
   return normalizeText(markdown);
 }
@@ -80,17 +85,9 @@ export function getStatusSnapshot(): StatusSnapshot {
   };
 }
 
-export function getOriginOptions(deals: DisplayDeal[]): string[] {
-  return Array.from(new Set(deals.map((deal) => deal.origin_label))).sort((a, b) => a.localeCompare(b));
-}
-
-export function getTransportOptions(deals: DisplayDeal[]): string[] {
-  return Array.from(new Set(deals.map((deal) => deal.transport_mode))).sort((a, b) => a.localeCompare(b));
-}
-
 function readLatestJsonArray<T>(dir: string): T[] {
-  const report = readLatestJson<T[]>(dir);
-  return Array.isArray(report) ? report : [];
+  const payload = readLatestJson<T[]>(dir);
+  return Array.isArray(payload) ? payload : [];
 }
 
 function readLatestJson<T>(dir: string): T | null {
@@ -100,7 +97,10 @@ function readLatestJson<T>(dir: string): T | null {
   return JSON.parse(raw) as T;
 }
 
-function getLatestFile(dir: string, ext: string): {name: string; path: string; updatedAt: string} | null {
+function getLatestFile(
+  dir: string,
+  ext: string
+): {name: string; path: string; updatedAt: string} | null {
   if (!fs.existsSync(dir)) return null;
   const files = fs
     .readdirSync(dir)
@@ -108,9 +108,11 @@ function getLatestFile(dir: string, ext: string): {name: string; path: string; u
     .sort()
     .reverse();
   if (files.length === 0) return null;
+
   const file = files[0];
   const filePath = path.join(dir, file);
   const stat = fs.statSync(filePath);
+
   return {
     name: file,
     path: filePath,

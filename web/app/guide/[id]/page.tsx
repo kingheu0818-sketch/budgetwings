@@ -29,17 +29,13 @@ export default function GuidePage({params}: {params: {id: string}}) {
 
       {deal ? (
         <section className="grid gap-6 border border-zinc-200 dark:border-zinc-800 lg:grid-cols-[1.05fr_0.95fr]">
-          <img
-            src={deal.imageUrl}
-            alt={deal.destination_label}
-            className="h-72 w-full object-cover"
-          />
+          <img src={deal.imageUrl} alt={deal.destinationLabel} className="h-72 w-full object-cover" />
           <div className="grid gap-4 p-5">
             <p className="text-sm font-semibold uppercase tracking-[0.12em] text-zinc-500">
               {transportLabel(deal.transport_mode)}
             </p>
             <h1 className="text-4xl font-black text-zinc-950 dark:text-white">
-              {deal.origin_label} → {deal.destination_label}
+              {deal.originLabel} → {deal.destinationLabel}
             </h1>
             <p className="text-5xl font-black text-rose-600 dark:text-rose-400">
               ¥{priceYuan(deal)}
