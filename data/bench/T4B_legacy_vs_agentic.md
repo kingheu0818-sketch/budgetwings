@@ -8,9 +8,12 @@
 | Deals accepted (post evidence validation) | 2 | 3 | +1 |
 | Unique destinations discovered | 2 | 3 | +1 |
 | Destinations outside legacy whitelist | 0 | 1 | +1 |
-| Average tool calls per run | 0 | 8 | +8 |
-| Average duration (ms) | 0 | 0 | +0 |
-| Evidence rejection rate | 0.0% | 25.0% | +25.0 pp |
+| Tool calls per run | 18 | 8 | -10 |
+| Run duration (mock ms) | 1 | 24 | +23 |
+
+## Agentic evidence rejection detail
+
+Of the 4 deals submitted by the agent, 3 passed evidence validation and 1 was rejected (`evidence_not_in_source`). This is the T3 validator working as designed: even though the agent has more freedom in deciding what to submit, the same evidence-grounding rule applies to its output. Legacy mode's evidence validation happens earlier in the pipeline (inside `price_parser`), so its rejection counts are not directly comparable here.
 
 ## Design rationale
 
@@ -31,6 +34,7 @@
 - A real agentic run can still hit iteration or tool-call ceilings before it finds enough diversity.
 - Because `EvidenceValidator` falls back to exact-string matching for unknown destinations, agentic mode can admit an evidence-grounded city outside the alias table today. That is a real current constraint, not something we should hand-wave away.
 - Real API runs will cost more than the mock numbers here suggest, which is one more reason legacy remains the default.
+- Legacy and agentic modes route deals through different paths to reach T3 evidence validation. Legacy validates inside `price_parser`; agentic validates in the loop finalizer. The end guarantee is the same (every accepted Deal passed evidence validation), but per-mode rejection stats are not directly comparable without normalizing the pipeline path.
 
 ## Two lines of defense, still intact
 

@@ -1,13 +1,13 @@
 {
-  "probed_at": "2026-04-21T08:33:09.128227+00:00",
+  "probed_at": "2026-04-21T08:46:08.793364+00:00",
   "city": "深圳",
   "real_api": false,
   "results": [
     {
       "city": "深圳",
       "mode": "legacy",
-      "duration_ms": 0,
-      "tool_call_count": 0,
+      "duration_ms": 1,
+      "tool_call_count": 18,
       "iteration_count": 0,
       "submitted_deal_count": 2,
       "accepted_deal_count": 2,
@@ -26,7 +26,7 @@
     {
       "city": "深圳",
       "mode": "agentic",
-      "duration_ms": 0,
+      "duration_ms": 24,
       "tool_call_count": 8,
       "iteration_count": 8,
       "submitted_deal_count": 4,
