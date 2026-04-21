@@ -4,83 +4,123 @@
     "category": "clean",
     "origin_city": "深圳",
     "behavior": "clean_json",
-    "text": "深圳飞曼谷，5月12日单程含税 299 元，春秋航空促销页可订。链接：https://flights.example.com/szx-bkk-2026-05-12"
+    "text": "深圳飞曼谷，2026-05-12 单程含税 299 元，春秋航空促销页可订。链接：https://flights.example.com/szx-bkk-2026-05-12"
   },
   {
     "sample_id": "clean_train_guangzhou_sanya",
     "category": "clean",
     "origin_city": "广州",
     "behavior": "clean_fenced_json",
-    "text": "广州南到三亚 5月18日高铁二等座 488 元，12306 显示余票充足。"
+    "text": "广州南到三亚 2026-05-18 高铁二等座 488 元，12306 显示余票充足。链接：https://trains.example.com/gz-sy-2026-05-18"
   },
   {
     "sample_id": "clean_bus_hangzhou_haikou",
     "category": "clean",
     "origin_city": "杭州",
     "behavior": "clean_list_json",
-    "text": "杭州到海口联运大巴套餐，5月20日出发 199 元起，平台直达链接可下单。"
+    "text": "杭州到海口联运大巴套餐，2026-05-10 出发 199 元起，平台直达链接可下单：https://bus.example.com/hgh-hak-2026-05-10"
   },
   {
     "sample_id": "noisy_multi_block_tokyo",
     "category": "noise",
     "origin_city": "上海",
     "behavior": "noisy_two_blocks",
-    "text": "上海飞东京页面里同时出现 699、899、1299 三个价格，还有广告返现和 5 月廉航文案。"
+    "text": "上海飞东京页面里同时出现 699、899、1299 三个价格，还有广告返现和 5 月廉航文案。真正的航线卡片写着：2026-05-20 上海飞东京 699 元起，吉祥航空。链接：https://flights.example.com/sha-tyo-2026-05-20"
   },
   {
     "sample_id": "noisy_prefixed_commentary_osaka",
     "category": "noise",
     "origin_city": "北京",
     "behavior": "noisy_prefixed_text",
-    "text": "北京飞大阪搜索结果包含用户评论、值机提醒、多个日期卡片和一条 520 元起的价格信息。"
+    "text": "北京飞大阪搜索结果包含用户评论、值机提醒、多个日期卡片和一条 2026-05-24 单程 520 元起的价格信息。航司为春秋航空，链接：https://flights.example.com/bjs-kix-2026-05-24"
   },
   {
     "sample_id": "noisy_long_snippet_chiangmai",
     "category": "noise",
     "origin_city": "深圳",
     "behavior": "noisy_valid_json",
-    "text": "深圳飞清迈页面很长，前半段在讲会员日，后半段提到 5 月 16 日单程 680 元，亚洲航空。"
+    "text": "深圳飞清迈页面很长，前半段在讲会员日，后半段提到 2026-05-16 单程 680 元，亚洲航空，另有酒店套餐广告。预订页：https://flights.example.com/szx-cnx-2026-05-16"
   },
   {
     "sample_id": "trap_last_year_post",
     "category": "trap",
     "origin_city": "成都",
     "behavior": "trap_past_date",
-    "text": "帖子标题写着去年五一成都飞曼谷 800 元拿下，正文都是 2025 年经验分享，没有当前票价。"
+    "text": "帖子标题写着去年五一成都飞曼谷 800 元拿下，正文全是 2025 年经验分享，没有当前票价，也没有 2026 年的可订链接。"
   },
   {
     "sample_id": "trap_round_trip_price",
     "category": "trap",
     "origin_city": "广州",
     "behavior": "trap_round_trip",
-    "text": "广州飞首尔往返 699 元含税，需叠加银行卡活动，单程价格未单独写明。"
+    "text": "广州飞首尔往返 1699 元含税，需叠加银行卡活动，单程价格未单独写明。链接是总览页：https://flights.example.com/can-sel-overview"
   },
   {
     "sample_id": "trap_promo_range",
     "category": "trap",
     "origin_city": "北京",
     "behavior": "trap_price_range",
-    "text": "北京飞清迈促销页面写“399-699 元起，输入优惠码 MAYLOVE 再减 50”，没有指向具体班次。"
+    "text": "北京飞清迈促销页面写“399-699 元起，输入优惠码 MAYLOVE 再减 50”，没有指向具体航次，也没有唯一价格。"
   },
   {
     "sample_id": "empty_no_price",
     "category": "empty",
     "origin_city": "深圳",
     "behavior": "empty_no_json",
-    "text": "深圳周末出游推荐，适合慢游和拍照，文章全在讲景点体验，没有任何价格。"
+    "text": "深圳周末出游推荐，适合慢游和拍照，文章全在讲景点体验，没有任何价格，也没有明确交通方式。"
   },
   {
     "sample_id": "bad_unrelated_finance_news",
     "category": "bad",
     "origin_city": "上海",
     "behavior": "empty_no_json",
-    "text": "今天人民币汇率波动，旅游板块股票上涨，航空公司财报超预期。"
+    "text": "今天人民币汇率波动，旅游板块股票上涨，航空公司财报超预期。整篇都不是出行报价信息。"
   },
   {
     "sample_id": "bad_invalid_json_block",
     "category": "bad",
     "origin_city": "杭州",
     "behavior": "bad_invalid_json",
-    "text": "杭州周边短途出行页面抓取失败，只残留半截 JSON 和广告脚本。"
+    "text": "杭州周边短途出行页面抓取失败，只残留半截 JSON 和广告脚本，没有可信票价。"
+  },
+  {
+    "sample_id": "hallucinated_price",
+    "category": "hallucination",
+    "origin_city": "深圳",
+    "behavior": "hallucinated_price",
+    "expected_rejection_reason": "price_not_in_evidence",
+    "text": "深圳飞曼谷 2026-05-22 单程 CNY 1200，泰国狮航，链接：https://flights.example.com/szx-bkk-2026-05-22"
+  },
+  {
+    "sample_id": "hallucinated_destination",
+    "category": "hallucination",
+    "origin_city": "深圳",
+    "behavior": "hallucinated_destination",
+    "expected_rejection_reason": "destination_not_in_evidence",
+    "text": "深圳飞曼谷 2026-05-23 单程 880 元，亚洲航空，链接：https://flights.example.com/szx-bkk-2026-05-23"
+  },
+  {
+    "sample_id": "hallucinated_evidence",
+    "category": "hallucination",
+    "origin_city": "广州",
+    "behavior": "hallucinated_evidence",
+    "expected_rejection_reason": "evidence_not_in_source",
+    "text": "广州飞首尔 2026-05-25 单程 999 元，大韩航空，链接：https://flights.example.com/can-sel-2026-05-25"
+  },
+  {
+    "sample_id": "missing_evidence",
+    "category": "hallucination",
+    "origin_city": "北京",
+    "behavior": "missing_evidence",
+    "expected_rejection_reason": "missing_evidence",
+    "text": "北京飞大阪 2026-05-26 单程 760 元，春秋航空，链接：https://flights.example.com/bjs-kix-2026-05-26"
+  },
+  {
+    "sample_id": "valid_evidence_control",
+    "category": "hallucination",
+    "origin_city": "成都",
+    "behavior": "valid_evidence_control",
+    "expected_rejection_reason": null,
+    "text": "成都飞三亚 2026-05-27 单程 430 元，四川航空，链接：https://flights.example.com/ctu-syx-2026-05-27"
   }
 ]

@@ -2,12 +2,17 @@
 
 Runs the current PriceParserTool against a fixed set of synthetic / recorded
 Tavily-like inputs and reports parse-level metrics. This script is used
-both BEFORE and AFTER the T2 refactor to produce before/after numbers.
+both BEFORE and AFTER parser refactors to produce before/after numbers.
 
 Usage:
     python scripts/bench_price_parser.py --out data/bench/price_parser_<tag>.json
 
-The tag is typically "baseline" before the refactor and "structured" after.
+Supported tags:
+    - baseline
+    - structured
+    - structured_no_validation
+    - structured_with_validation
+    - smoke
 """
 
 from __future__ import annotations
@@ -30,16 +35,40 @@ from agents.orchestrator import build_llm  # noqa: E402
 from config import Settings, get_settings  # noqa: E402
 from llm.base import ChatMessage, LLMAdapter, LLMError, ToolCallResult, ToolSchema  # noqa: E402
 from models.deal import Deal  # noqa: E402
+from tools.evidence_validator import EvidenceValidator, ValidationResult  # noqa: E402
 from tools.price_parser import PriceParserInput, PriceParserTool  # noqa: E402
 
 FIXTURE_PATH = Path("tests/fixtures/price_parser_samples.json")
 DEALS_DIR = Path("data/deals")
+HALLUCINATION_SAMPLE_IDS = {
+    "hallucinated_price",
+    "hallucinated_destination",
+    "hallucinated_evidence",
+    "missing_evidence",
+    "valid_evidence_control",
+}
+ACCEPT_CONTROL_CATEGORIES = {"clean", "noise", "recorded"}
+ACCEPT_CONTROL_SAMPLE_IDS = {"valid_evidence_control"}
+
+
+class AllowAllEvidenceValidator(EvidenceValidator):
+    def __init__(self) -> None:
+        super().__init__({})
+
+    def validate(self, extracted: Any, source_text: str) -> ValidationResult:
+        evidence_text = getattr(extracted, "evidence_text", "") or ""
+        return ValidationResult(
+            is_valid=True,
+            reasons=(),
+            evidence_text=self._normalize(evidence_text),
+        )
 
 
 class BenchmarkMockLLM(LLMAdapter):
-    def __init__(self, sample: dict[str, Any]) -> None:
+    def __init__(self, sample: dict[str, Any], tag: str) -> None:
         super().__init__(model="bench-mock")
         self.sample = sample
+        self.tag = tag
 
     async def chat(
         self,
@@ -47,7 +76,7 @@ class BenchmarkMockLLM(LLMAdapter):
         tools: list[ToolSchema] | None = None,
     ) -> str:
         del messages, tools
-        return _baseline_response_for_sample(self.sample)
+        raise LLMError("chat() is not used in the structured benchmark harness")
 
     async def chat_with_tools(
         self,
@@ -65,7 +94,7 @@ class BenchmarkMockLLM(LLMAdapter):
         schema_description: str,
     ) -> dict[str, Any]:
         del messages, schema, schema_name, schema_description
-        return _structured_response_for_sample(self.sample)
+        return _structured_response_for_sample(self.sample, self.tag)
 
 
 async def main_async(args: argparse.Namespace) -> None:
@@ -79,12 +108,18 @@ async def main_async(args: argparse.Namespace) -> None:
     error_count = 0
     total_deals_extracted = 0
     pydantic_validation_failures = 0
+    hallucination_injected_count = 0
+    hallucination_rejected_count = 0
+    false_positive_rejections = 0
+    rejection_by_reason: dict[str, int] = {}
 
     shared_llm = None if mock_mode else build_llm(settings)
+    validation_enabled = args.tag in {"structured_with_validation", "smoke"}
 
     for sample in samples:
-        llm = BenchmarkMockLLM(sample) if mock_mode else shared_llm
-        tool = PriceParserTool(llm)
+        llm = BenchmarkMockLLM(sample, args.tag) if mock_mode else shared_llm
+        validator = None if validation_enabled else AllowAllEvidenceValidator()
+        tool = PriceParserTool(llm, evidence_validator=validator)
         result = await tool.execute(
             PriceParserInput(text=sample["text"], origin_city=sample.get("origin_city"))
         )
@@ -97,7 +132,7 @@ async def main_async(args: argparse.Namespace) -> None:
             for item in payload:
                 try:
                     Deal.model_validate(item)
-                except Exception as exc:
+                except Exception as exc:  # pragma: no cover - metrics path
                     pydantic_validation_failures += 1
                     sample_errors.append(f"Deal validation failed: {exc}")
                 else:
@@ -110,6 +145,21 @@ async def main_async(args: argparse.Namespace) -> None:
             if result.error:
                 sample_errors.append(result.error)
 
+        for reason, count in tool.last_rejection_log.items():
+            rejection_by_reason[reason] = rejection_by_reason.get(reason, 0) + count
+
+        if sample["sample_id"] in HALLUCINATION_SAMPLE_IDS:
+            hallucination_injected_count += 1
+            expected_reason = sample.get("expected_rejection_reason")
+            if expected_reason is not None and expected_reason in tool.last_rejection_log:
+                hallucination_rejected_count += 1
+
+        if (
+            sample["category"] in ACCEPT_CONTROL_CATEGORIES
+            or sample["sample_id"] in ACCEPT_CONTROL_SAMPLE_IDS
+        ) and tool.last_rejected_count > 0:
+            false_positive_rejections += tool.last_rejected_count
+
         per_sample.append(
             {
                 "sample_id": sample["sample_id"],
@@ -117,9 +167,16 @@ async def main_async(args: argparse.Namespace) -> None:
                 "success": result.success,
                 "deal_count": deal_count,
                 "errors": sample_errors,
+                "rejected_count": tool.last_rejected_count,
+                "rejection_by_reason": dict(tool.last_rejection_log),
             }
         )
 
+    hallucination_rejection_rate = (
+        hallucination_rejected_count / hallucination_injected_count
+        if hallucination_injected_count
+        else 0.0
+    )
     report = {
         "tag": args.tag,
         "timestamp": datetime.now(UTC).isoformat(),
@@ -132,6 +189,11 @@ async def main_async(args: argparse.Namespace) -> None:
         "error_count": error_count,
         "total_deals_extracted": total_deals_extracted,
         "pydantic_validation_failures": pydantic_validation_failures,
+        "hallucination_injected_count": hallucination_injected_count,
+        "hallucination_rejected_count": hallucination_rejected_count,
+        "hallucination_rejection_rate": round(hallucination_rejection_rate, 4),
+        "rejection_by_reason": rejection_by_reason,
+        "false_positive_rejections": false_positive_rejections,
         "per_sample": per_sample,
     }
 
@@ -189,6 +251,7 @@ def load_recorded_samples() -> list[dict[str, Any]]:
                 "sample_id": f"recorded_{index}",
                 "category": "recorded",
                 "origin_city": origin,
+                "destination_city": destination,
                 "behavior": "recorded_realistic",
                 "text": (
                     f"Tavily snippet: {origin} -> {destination}，{departure} 单程 {price_yuan} 元。"
@@ -199,88 +262,8 @@ def load_recorded_samples() -> list[dict[str, Any]]:
     return recorded
 
 
-def _baseline_response_for_sample(sample: dict[str, Any]) -> str:
-    behavior = str(sample.get("behavior"))
-    if behavior == "clean_json":
-        return json.dumps({"deals": [_sample_deal(sample, 299, "flight")]}, ensure_ascii=False)
-    if behavior == "clean_fenced_json":
-        payload = json.dumps({"deals": [_sample_deal(sample, 488, "train")]}, ensure_ascii=False)
-        return f"```json\n{payload}\n```"
-    if behavior == "clean_list_json":
-        payload = json.dumps([_sample_deal(sample, 199, "bus")], ensure_ascii=False)
-        return payload
-    if behavior == "noisy_two_blocks":
-        good = json.dumps({"deals": [_sample_deal(sample, 520, "flight")]}, ensure_ascii=False)
-        return (
-            "先给你一个草稿：\n"
-            "```json\n{\"summary\": \"候选很多\"}\n```\n"
-            "真正结果在后面：\n"
-            f"```json\n{good}\n```"
-        )
-    if behavior == "noisy_prefixed_text":
-        good = json.dumps({"deals": [_sample_deal(sample, 520, "flight")]}, ensure_ascii=False)
-        return f"以下是我提取的结果：\n{good}"
-    if behavior == "noisy_valid_json":
-        return json.dumps({"deals": [_sample_deal(sample, 680, "flight")]}, ensure_ascii=False)
-    if behavior == "trap_past_date":
-        return json.dumps(
-            {
-                "deals": [
-                    _sample_deal(sample, 800, "flight", departure_date="2025-05-01", source="forum")
-                ]
-            },
-            ensure_ascii=False,
-        )
-    if behavior == "trap_round_trip":
-        return json.dumps(
-            {
-                "deals": [
-                    _sample_deal(
-                        sample,
-                        699,
-                        "flight",
-                        is_round_trip=True,
-                        return_date=(date.today() + timedelta(days=9)).isoformat(),
-                    )
-                ]
-            },
-            ensure_ascii=False,
-        )
-    if behavior == "trap_price_range":
-        return json.dumps(
-            {
-                "deals": [
-                    _sample_deal(sample, "399-699", "flight", booking_url="https://example.com")
-                ]
-            },
-            ensure_ascii=False,
-        )
-    if behavior == "empty_no_json":
-        return "这段文本没有明确票价，我无法提取结构化结果。"
-    if behavior == "bad_invalid_json":
-        return (
-            "```json\n"
-            "{\"deals\": [{\"origin_city\": \"杭州\" \"destination_city\": \"海口\"}]}\n"
-            "```"
-        )
-    if behavior == "recorded_realistic":
-        good = json.dumps(
-            {"deals": [_sample_deal(sample, _recorded_price(sample), "flight")]},
-            ensure_ascii=False,
-        )
-        if sample["sample_id"] == "recorded_2":
-            return f"我先解释一下来源，再给结果：{good}"
-        if sample["sample_id"] == "recorded_3":
-            return (
-                "```json\n{\"meta\": {\"confidence\": 0.42}}\n```\n"
-                f"```json\n{good}\n```"
-            )
-        return f"```json\n{good}\n```"
-    msg = f"Unhandled benchmark behavior: {behavior}"
-    raise LLMError(msg)
-
-
-def _structured_response_for_sample(sample: dict[str, Any]) -> dict[str, Any]:
+def _structured_response_for_sample(sample: dict[str, Any], tag: str) -> dict[str, Any]:
+    del tag
     behavior = str(sample.get("behavior"))
     if behavior in {"clean_json", "clean_fenced_json", "clean_list_json"}:
         transport_map = {
@@ -292,7 +275,7 @@ def _structured_response_for_sample(sample: dict[str, Any]) -> dict[str, Any]:
         price = {"clean_json": 299, "clean_fenced_json": 488, "clean_list_json": 199}[behavior]
         return {"deals": [_structured_deal(sample, price, transport)]}
     if behavior == "noisy_two_blocks":
-        return {"deals": [_structured_deal(sample, 520, "flight", operator="吉祥航空")]}
+        return {"deals": [_structured_deal(sample, 699, "flight", operator="吉祥航空")]}
     if behavior == "noisy_prefixed_text":
         return {"deals": [_structured_deal(sample, 520, "flight", operator="春秋航空")]}
     if behavior == "noisy_valid_json":
@@ -301,36 +284,61 @@ def _structured_response_for_sample(sample: dict[str, Any]) -> dict[str, Any]:
         return {"deals": []}
     if behavior in {"empty_no_json", "bad_invalid_json"}:
         return {"deals": []}
+    if behavior == "hallucinated_price":
+        return {
+            "deals": [
+                _structured_deal(
+                    sample,
+                    600,
+                    "flight",
+                    operator="泰国狮航",
+                    evidence_text="深圳飞曼谷 2026-05-22 单程 CNY 1200，泰国狮航",
+                )
+            ]
+        }
+    if behavior == "hallucinated_destination":
+        return {
+            "deals": [
+                _structured_deal(
+                    sample,
+                    880,
+                    "flight",
+                    destination_city="清迈",
+                    operator="亚洲航空",
+                    evidence_text="深圳飞曼谷 2026-05-23 单程 880 元，亚洲航空",
+                )
+            ]
+        }
+    if behavior == "hallucinated_evidence":
+        return {
+            "deals": [
+                _structured_deal(
+                    sample,
+                    999,
+                    "flight",
+                    operator="大韩航空",
+                    evidence_text="广州飞首尔 2026-05-25 只要 699 元，大韩航空秒杀",
+                )
+            ]
+        }
+    if behavior == "missing_evidence":
+        return {
+            "deals": [
+                _structured_deal(
+                    sample,
+                    760,
+                    "flight",
+                    operator="春秋航空",
+                    evidence_text="",
+                )
+            ]
+        }
+    if behavior == "valid_evidence_control":
+        return {"deals": [_structured_deal(sample, 430, "flight", operator="四川航空")]}
     if behavior == "recorded_realistic":
         return {"deals": [_structured_deal(sample, _recorded_price(sample), "flight")]}
     msg = f"Unhandled structured benchmark behavior: {behavior}"
     raise LLMError(msg)
-
-
-def _sample_deal(
-    sample: dict[str, Any],
-    price_cny: int | str,
-    transport_mode: str,
-    *,
-    departure_date: str | None = None,
-    return_date: str | None = None,
-    is_round_trip: bool = False,
-    booking_url: str | None = None,
-    source: str = "agent",
-) -> dict[str, Any]:
-    destination = _destination_for_sample(sample)
-    return {
-        "source": source,
-        "origin_city": sample.get("origin_city", "深圳"),
-        "destination_city": destination,
-        "price_cny": price_cny,
-        "transport_mode": transport_mode,
-        "departure_date": departure_date or (date.today() + timedelta(days=21)).isoformat(),
-        "return_date": return_date,
-        "is_round_trip": is_round_trip,
-        "booking_url": booking_url or f"https://example.com/{sample['sample_id']}",
-        "source_url": f"https://source.example.com/{sample['sample_id']}",
-    }
 
 
 def _structured_deal(
@@ -338,11 +346,13 @@ def _structured_deal(
     price_cny: int,
     transport_mode: str,
     *,
+    destination_city: str | None = None,
     operator: str | None = None,
+    evidence_text: str | None = None,
 ) -> dict[str, Any]:
     return {
         "origin_city": sample.get("origin_city", "深圳"),
-        "destination_city": _destination_for_sample(sample),
+        "destination_city": destination_city or _destination_for_sample(sample),
         "price_cny": price_cny,
         "transport_mode": transport_mode,
         "departure_date": (date.today() + timedelta(days=21)).isoformat(),
@@ -351,11 +361,21 @@ def _structured_deal(
         "operator": operator,
         "booking_url": f"https://example.com/{sample['sample_id']}",
         "source_url": f"https://source.example.com/{sample['sample_id']}",
-        "evidence_text": sample["text"][:120],
+        "evidence_text": (
+            _default_evidence_text(sample) if evidence_text is None else evidence_text
+        ),
     }
 
 
+def _default_evidence_text(sample: dict[str, Any]) -> str:
+    text = str(sample["text"])
+    return text[:120]
+
+
 def _destination_for_sample(sample: dict[str, Any]) -> str:
+    destination = sample.get("destination_city")
+    if isinstance(destination, str) and destination.strip():
+        return destination
     sample_id = str(sample.get("sample_id", ""))
     mapping = {
         "clean_flight_shenzhen_bangkok": "曼谷",
@@ -370,6 +390,11 @@ def _destination_for_sample(sample: dict[str, Any]) -> str:
         "empty_no_price": "未知目的地",
         "bad_unrelated_finance_news": "未知目的地",
         "bad_invalid_json_block": "海口",
+        "hallucinated_price": "曼谷",
+        "hallucinated_destination": "曼谷",
+        "hallucinated_evidence": "首尔",
+        "missing_evidence": "大阪",
+        "valid_evidence_control": "三亚",
         "recorded_1": "首尔",
         "recorded_2": "成都",
         "recorded_3": "曼谷",

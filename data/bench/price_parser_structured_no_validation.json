@@ -1,0 +1,200 @@
+{
+  "tag": "structured_no_validation",
+  "timestamp": "2026-04-21T07:43:21.678421+00:00",
+  "provider": "mock",
+  "model": "bench-mock",
+  "mock_mode": true,
+  "total_samples": 20,
+  "success_count": 20,
+  "empty_result_count": 6,
+  "error_count": 0,
+  "total_deals_extracted": 14,
+  "pydantic_validation_failures": 0,
+  "hallucination_injected_count": 5,
+  "hallucination_rejected_count": 0,
+  "hallucination_rejection_rate": 0.0,
+  "rejection_by_reason": {},
+  "false_positive_rejections": 0,
+  "per_sample": [
+    {
+      "sample_id": "clean_flight_shenzhen_bangkok",
+      "category": "clean",
+      "success": true,
+      "deal_count": 1,
+      "errors": [],
+      "rejected_count": 0,
+      "rejection_by_reason": {}
+    },
+    {
+      "sample_id": "clean_train_guangzhou_sanya",
+      "category": "clean",
+      "success": true,
+      "deal_count": 1,
+      "errors": [],
+      "rejected_count": 0,
+      "rejection_by_reason": {}
+    },
+    {
+      "sample_id": "clean_bus_hangzhou_haikou",
+      "category": "clean",
+      "success": true,
+      "deal_count": 1,
+      "errors": [],
+      "rejected_count": 0,
+      "rejection_by_reason": {}
+    },
+    {
+      "sample_id": "noisy_multi_block_tokyo",
+      "category": "noise",
+      "success": true,
+      "deal_count": 1,
+      "errors": [],
+      "rejected_count": 0,
+      "rejection_by_reason": {}
+    },
+    {
+      "sample_id": "noisy_prefixed_commentary_osaka",
+      "category": "noise",
+      "success": true,
+      "deal_count": 1,
+      "errors": [],
+      "rejected_count": 0,
+      "rejection_by_reason": {}
+    },
+    {
+      "sample_id": "noisy_long_snippet_chiangmai",
+      "category": "noise",
+      "success": true,
+      "deal_count": 1,
+      "errors": [],
+      "rejected_count": 0,
+      "rejection_by_reason": {}
+    },
+    {
+      "sample_id": "trap_last_year_post",
+      "category": "trap",
+      "success": true,
+      "deal_count": 0,
+      "errors": [],
+      "rejected_count": 0,
+      "rejection_by_reason": {}
+    },
+    {
+      "sample_id": "trap_round_trip_price",
+      "category": "trap",
+      "success": true,
+      "deal_count": 0,
+      "errors": [],
+      "rejected_count": 0,
+      "rejection_by_reason": {}
+    },
+    {
+      "sample_id": "trap_promo_range",
+      "category": "trap",
+      "success": true,
+      "deal_count": 0,
+      "errors": [],
+      "rejected_count": 0,
+      "rejection_by_reason": {}
+    },
+    {
+      "sample_id": "empty_no_price",
+      "category": "empty",
+      "success": true,
+      "deal_count": 0,
+      "errors": [],
+      "rejected_count": 0,
+      "rejection_by_reason": {}
+    },
+    {
+      "sample_id": "bad_unrelated_finance_news",
+      "category": "bad",
+      "success": true,
+      "deal_count": 0,
+      "errors": [],
+      "rejected_count": 0,
+      "rejection_by_reason": {}
+    },
+    {
+      "sample_id": "bad_invalid_json_block",
+      "category": "bad",
+      "success": true,
+      "deal_count": 0,
+      "errors": [],
+      "rejected_count": 0,
+      "rejection_by_reason": {}
+    },
+    {
+      "sample_id": "hallucinated_price",
+      "category": "hallucination",
+      "success": true,
+      "deal_count": 1,
+      "errors": [],
+      "rejected_count": 0,
+      "rejection_by_reason": {}
+    },
+    {
+      "sample_id": "hallucinated_destination",
+      "category": "hallucination",
+      "success": true,
+      "deal_count": 1,
+      "errors": [],
+      "rejected_count": 0,
+      "rejection_by_reason": {}
+    },
+    {
+      "sample_id": "hallucinated_evidence",
+      "category": "hallucination",
+      "success": true,
+      "deal_count": 1,
+      "errors": [],
+      "rejected_count": 0,
+      "rejection_by_reason": {}
+    },
+    {
+      "sample_id": "missing_evidence",
+      "category": "hallucination",
+      "success": true,
+      "deal_count": 1,
+      "errors": [],
+      "rejected_count": 0,
+      "rejection_by_reason": {}
+    },
+    {
+      "sample_id": "valid_evidence_control",
+      "category": "hallucination",
+      "success": true,
+      "deal_count": 1,
+      "errors": [],
+      "rejected_count": 0,
+      "rejection_by_reason": {}
+    },
+    {
+      "sample_id": "recorded_1",
+      "category": "recorded",
+      "success": true,
+      "deal_count": 1,
+      "errors": [],
+      "rejected_count": 0,
+      "rejection_by_reason": {}
+    },
+    {
+      "sample_id": "recorded_2",
+      "category": "recorded",
+      "success": true,
+      "deal_count": 1,
+      "errors": [],
+      "rejected_count": 0,
+      "rejection_by_reason": {}
+    },
+    {
+      "sample_id": "recorded_3",
+      "category": "recorded",
+      "success": true,
+      "deal_count": 1,
+      "errors": [],
+      "rejected_count": 0,
+      "rejection_by_reason": {}
+    }
+  ]
+}
