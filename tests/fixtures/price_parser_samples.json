@@ -1,0 +1,86 @@
+[
+  {
+    "sample_id": "clean_flight_shenzhen_bangkok",
+    "category": "clean",
+    "origin_city": "深圳",
+    "behavior": "clean_json",
+    "text": "深圳飞曼谷，5月12日单程含税 299 元，春秋航空促销页可订。链接：https://flights.example.com/szx-bkk-2026-05-12"
+  },
+  {
+    "sample_id": "clean_train_guangzhou_sanya",
+    "category": "clean",
+    "origin_city": "广州",
+    "behavior": "clean_fenced_json",
+    "text": "广州南到三亚 5月18日高铁二等座 488 元，12306 显示余票充足。"
+  },
+  {
+    "sample_id": "clean_bus_hangzhou_haikou",
+    "category": "clean",
+    "origin_city": "杭州",
+    "behavior": "clean_list_json",
+    "text": "杭州到海口联运大巴套餐，5月20日出发 199 元起，平台直达链接可下单。"
+  },
+  {
+    "sample_id": "noisy_multi_block_tokyo",
+    "category": "noise",
+    "origin_city": "上海",
+    "behavior": "noisy_two_blocks",
+    "text": "上海飞东京页面里同时出现 699、899、1299 三个价格，还有广告返现和 5 月廉航文案。"
+  },
+  {
+    "sample_id": "noisy_prefixed_commentary_osaka",
+    "category": "noise",
+    "origin_city": "北京",
+    "behavior": "noisy_prefixed_text",
+    "text": "北京飞大阪搜索结果包含用户评论、值机提醒、多个日期卡片和一条 520 元起的价格信息。"
+  },
+  {
+    "sample_id": "noisy_long_snippet_chiangmai",
+    "category": "noise",
+    "origin_city": "深圳",
+    "behavior": "noisy_valid_json",
+    "text": "深圳飞清迈页面很长，前半段在讲会员日，后半段提到 5 月 16 日单程 680 元，亚洲航空。"
+  },
+  {
+    "sample_id": "trap_last_year_post",
+    "category": "trap",
+    "origin_city": "成都",
+    "behavior": "trap_past_date",
+    "text": "帖子标题写着去年五一成都飞曼谷 800 元拿下，正文都是 2025 年经验分享，没有当前票价。"
+  },
+  {
+    "sample_id": "trap_round_trip_price",
+    "category": "trap",
+    "origin_city": "广州",
+    "behavior": "trap_round_trip",
+    "text": "广州飞首尔往返 699 元含税，需叠加银行卡活动，单程价格未单独写明。"
+  },
+  {
+    "sample_id": "trap_promo_range",
+    "category": "trap",
+    "origin_city": "北京",
+    "behavior": "trap_price_range",
+    "text": "北京飞清迈促销页面写“399-699 元起，输入优惠码 MAYLOVE 再减 50”，没有指向具体班次。"
+  },
+  {
+    "sample_id": "empty_no_price",
+    "category": "empty",
+    "origin_city": "深圳",
+    "behavior": "empty_no_json",
+    "text": "深圳周末出游推荐，适合慢游和拍照，文章全在讲景点体验，没有任何价格。"
+  },
+  {
+    "sample_id": "bad_unrelated_finance_news",
+    "category": "bad",
+    "origin_city": "上海",
+    "behavior": "empty_no_json",
+    "text": "今天人民币汇率波动，旅游板块股票上涨，航空公司财报超预期。"
+  },
+  {
+    "sample_id": "bad_invalid_json_block",
+    "category": "bad",
+    "origin_city": "杭州",
+    "behavior": "bad_invalid_json",
+    "text": "杭州周边短途出行页面抓取失败，只残留半截 JSON 和广告脚本。"
+  }
+]

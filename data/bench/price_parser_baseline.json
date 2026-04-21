@@ -1,0 +1,136 @@
+{
+  "tag": "baseline",
+  "timestamp": "2026-04-21T07:02:56.146962+00:00",
+  "provider": "mock",
+  "model": "bench-mock",
+  "mock_mode": true,
+  "total_samples": 15,
+  "success_count": 7,
+  "empty_result_count": 0,
+  "error_count": 8,
+  "total_deals_extracted": 7,
+  "pydantic_validation_failures": 0,
+  "per_sample": [
+    {
+      "sample_id": "clean_flight_shenzhen_bangkok",
+      "category": "clean",
+      "success": true,
+      "deal_count": 1,
+      "errors": []
+    },
+    {
+      "sample_id": "clean_train_guangzhou_sanya",
+      "category": "clean",
+      "success": true,
+      "deal_count": 1,
+      "errors": []
+    },
+    {
+      "sample_id": "clean_bus_hangzhou_haikou",
+      "category": "clean",
+      "success": true,
+      "deal_count": 1,
+      "errors": []
+    },
+    {
+      "sample_id": "noisy_multi_block_tokyo",
+      "category": "noise",
+      "success": false,
+      "deal_count": 0,
+      "errors": [
+        "price parser expected a JSON list or object with deals"
+      ]
+    },
+    {
+      "sample_id": "noisy_prefixed_commentary_osaka",
+      "category": "noise",
+      "success": false,
+      "deal_count": 0,
+      "errors": [
+        "Expecting value: line 1 column 1 (char 0)"
+      ]
+    },
+    {
+      "sample_id": "noisy_long_snippet_chiangmai",
+      "category": "noise",
+      "success": true,
+      "deal_count": 1,
+      "errors": []
+    },
+    {
+      "sample_id": "trap_last_year_post",
+      "category": "trap",
+      "success": true,
+      "deal_count": 1,
+      "errors": []
+    },
+    {
+      "sample_id": "trap_round_trip_price",
+      "category": "trap",
+      "success": false,
+      "deal_count": 0,
+      "errors": [
+        "1 validation error for Deal\n  Value error, return_date must be on or after departure_date [type=value_error, input_value={'source': 'agent', 'orig...p_price', 'notes': None}, input_type=dict]\n    For further information visit https://errors.pydantic.dev/2.13/v/value_error"
+      ]
+    },
+    {
+      "sample_id": "trap_promo_range",
+      "category": "trap",
+      "success": true,
+      "deal_count": 1,
+      "errors": []
+    },
+    {
+      "sample_id": "empty_no_price",
+      "category": "empty",
+      "success": false,
+      "deal_count": 0,
+      "errors": [
+        "Expecting value: line 1 column 1 (char 0)"
+      ]
+    },
+    {
+      "sample_id": "bad_unrelated_finance_news",
+      "category": "bad",
+      "success": false,
+      "deal_count": 0,
+      "errors": [
+        "Expecting value: line 1 column 1 (char 0)"
+      ]
+    },
+    {
+      "sample_id": "bad_invalid_json_block",
+      "category": "bad",
+      "success": false,
+      "deal_count": 0,
+      "errors": [
+        "Expecting ',' delimiter: line 1 column 33 (char 32)"
+      ]
+    },
+    {
+      "sample_id": "recorded_1",
+      "category": "recorded",
+      "success": true,
+      "deal_count": 1,
+      "errors": []
+    },
+    {
+      "sample_id": "recorded_2",
+      "category": "recorded",
+      "success": false,
+      "deal_count": 0,
+      "errors": [
+        "Expecting value: line 1 column 1 (char 0)"
+      ]
+    },
+    {
+      "sample_id": "recorded_3",
+      "category": "recorded",
+      "success": false,
+      "deal_count": 0,
+      "errors": [
+        "price parser expected a JSON list or object with deals"
+      ]
+    }
+  ]
+}
