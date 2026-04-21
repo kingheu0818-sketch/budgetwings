@@ -1,0 +1,378 @@
+{
+  "probed_at": "2026-04-21T08:08:15.902878+00:00",
+  "endpoints": {
+    "anthropic": {
+      "base_url": "not configured",
+      "configured": false
+    },
+    "openai": {
+      "base_url": "https://api.ikuncode.cc/v1",
+      "configured": true
+    }
+  },
+  "results": [
+    {
+      "provider": "openai",
+      "model": "gpt-5.4",
+      "connectivity": {
+        "sample_output": "好",
+        "ok": true,
+        "http_status": 200,
+        "latency_ms": 1309,
+        "raw_response": {
+          "id": "chatcmpl-202604210808044521061948268d9d6GGSGWejH",
+          "model": "gpt-5.4",
+          "object": "chat.completion",
+          "created": 1776758884,
+          "choices": [
+            {
+              "index": 0,
+              "message": {
+                "role": "assistant",
+                "content": "好"
+              },
+              "finish_reason": "stop"
+            }
+          ],
+          "usage": {
+            "prompt_tokens": 11,
+            "completion_tokens": 5,
+            "total_tokens": 16,
+            "prompt_tokens_details": {
+              "cached_tokens": 0,
+              "text_tokens": 0,
+              "audio_tokens": 0,
+              "image_tokens": 0
+            },
+            "completion_tokens_details": {
+              "text_tokens": 0,
+              "audio_tokens": 0,
+              "reasoning_tokens": 0
+            },
+            "input_tokens": 11,
+            "output_tokens": 5,
+            "input_tokens_details": null,
+            "claude_cache_creation_5_m_tokens": 0,
+            "claude_cache_creation_1_h_tokens": 0
+          }
+        },
+        "errors": []
+      },
+      "structured_output": {
+        "valid_json": true,
+        "had_code_fence": false,
+        "raw_response_length": 41,
+        "sample_output": "{\"city\":\"Shenzhen\",\"population\":17560000}",
+        "ok": true,
+        "http_status": 200,
+        "latency_ms": 1245,
+        "raw_response": {
+          "id": "chatcmpl-202604210808056433269778268d9d6dZdwXKh4",
+          "model": "gpt-5.4",
+          "object": "chat.completion",
+          "created": 1776758885,
+          "choices": [
+            {
+              "index": 0,
+              "message": {
+                "role": "assistant",
+                "content": "{\"city\":\"Shenzhen\",\"population\":17560000}"
+              },
+              "finish_reason": "stop"
+            }
+          ],
+          "usage": {
+            "prompt_tokens": 31,
+            "completion_tokens": 16,
+            "total_tokens": 47,
+            "prompt_tokens_details": {
+              "cached_tokens": 0,
+              "text_tokens": 0,
+              "audio_tokens": 0,
+              "image_tokens": 0
+            },
+            "completion_tokens_details": {
+              "text_tokens": 0,
+              "audio_tokens": 0,
+              "reasoning_tokens": 0
+            },
+            "input_tokens": 31,
+            "output_tokens": 16,
+            "input_tokens_details": null,
+            "claude_cache_creation_5_m_tokens": 0,
+            "claude_cache_creation_1_h_tokens": 0
+          }
+        },
+        "errors": []
+      },
+      "tool_use": {
+        "tool_called": "get_weather",
+        "arguments_valid_json": true,
+        "city_arg": "深圳",
+        "raw_arguments": "{\"city\":\"深圳\"}",
+        "ok": true,
+        "http_status": 200,
+        "latency_ms": 1447,
+        "raw_response": {
+          "id": "chatcmpl-202604210808068997967748268d9d60PUMzEJ1",
+          "model": "gpt-5.4",
+          "object": "chat.completion",
+          "created": 1776758887,
+          "choices": [
+            {
+              "index": 0,
+              "message": {
+                "role": "assistant",
+                "content": "",
+                "tool_calls": [
+                  {
+                    "id": "call_YPmiAogGABzOwTIXKcQy0edu",
+                    "type": "function",
+                    "function": {
+                      "name": "get_weather",
+                      "arguments": "{\"city\":\"深圳\"}"
+                    }
+                  }
+                ]
+              },
+              "finish_reason": "tool_calls"
+            }
+          ],
+          "usage": {
+            "prompt_tokens": 70,
+            "completion_tokens": 18,
+            "total_tokens": 88,
+            "prompt_tokens_details": {
+              "cached_tokens": 0,
+              "text_tokens": 0,
+              "audio_tokens": 0,
+              "image_tokens": 0
+            },
+            "completion_tokens_details": {
+              "text_tokens": 0,
+              "audio_tokens": 0,
+              "reasoning_tokens": 0
+            },
+            "input_tokens": 70,
+            "output_tokens": 18,
+            "input_tokens_details": null,
+            "claude_cache_creation_5_m_tokens": 0,
+            "claude_cache_creation_1_h_tokens": 0
+          }
+        },
+        "errors": []
+      },
+      "errors": []
+    },
+    {
+      "provider": "openai",
+      "model": "gpt-5.4-mini",
+      "connectivity": {
+        "sample_output": "好",
+        "ok": true,
+        "http_status": 200,
+        "latency_ms": 1728,
+        "raw_response": {
+          "id": "chatcmpl-202604210808083449621798268d9d6qZbi59WV",
+          "model": "gpt-5.4-mini",
+          "object": "chat.completion",
+          "created": 1776758889,
+          "choices": [
+            {
+              "index": 0,
+              "message": {
+                "role": "assistant",
+                "content": "好"
+              },
+              "finish_reason": "stop"
+            }
+          ],
+          "usage": {
+            "prompt_tokens": 11,
+            "completion_tokens": 5,
+            "total_tokens": 16,
+            "prompt_tokens_details": {
+              "cached_tokens": 0,
+              "text_tokens": 0,
+              "audio_tokens": 0,
+              "image_tokens": 0
+            },
+            "completion_tokens_details": {
+              "text_tokens": 0,
+              "audio_tokens": 0,
+              "reasoning_tokens": 0
+            },
+            "input_tokens": 11,
+            "output_tokens": 5,
+            "input_tokens_details": null,
+            "claude_cache_creation_5_m_tokens": 0,
+            "claude_cache_creation_1_h_tokens": 0
+          }
+        },
+        "errors": []
+      },
+      "structured_output": {
+        "valid_json": true,
+        "had_code_fence": false,
+        "raw_response_length": 41,
+        "sample_output": "{\"city\":\"Shenzhen\",\"population\":17600000}",
+        "ok": true,
+        "http_status": 200,
+        "latency_ms": 2385,
+        "raw_response": {
+          "id": "chatcmpl-20260421080810708478638268d9d6kpDMEr30",
+          "model": "gpt-5.4-mini",
+          "object": "chat.completion",
+          "created": 1776758890,
+          "choices": [
+            {
+              "index": 0,
+              "message": {
+                "role": "assistant",
+                "content": "{\"city\":\"Shenzhen\",\"population\":17600000}"
+              },
+              "finish_reason": "stop"
+            }
+          ],
+          "usage": {
+            "prompt_tokens": 31,
+            "completion_tokens": 16,
+            "total_tokens": 47,
+            "prompt_tokens_details": {
+              "cached_tokens": 0,
+              "text_tokens": 0,
+              "audio_tokens": 0,
+              "image_tokens": 0
+            },
+            "completion_tokens_details": {
+              "text_tokens": 0,
+              "audio_tokens": 0,
+              "reasoning_tokens": 0
+            },
+            "input_tokens": 31,
+            "output_tokens": 16,
+            "input_tokens_details": null,
+            "claude_cache_creation_5_m_tokens": 0,
+            "claude_cache_creation_1_h_tokens": 0
+          }
+        },
+        "errors": []
+      },
+      "tool_use": {
+        "tool_called": "get_weather",
+        "arguments_valid_json": true,
+        "city_arg": "深圳",
+        "raw_arguments": "{\"city\":\"深圳\"}",
+        "ok": true,
+        "http_status": 200,
+        "latency_ms": 1261,
+        "raw_response": {
+          "id": "chatcmpl-202604210808124515794358268d9d6ldPCNXfK",
+          "model": "gpt-5.4-mini-2026-03-17",
+          "object": "chat.completion",
+          "created": 1776758892,
+          "choices": [
+            {
+              "index": 0,
+              "message": {
+                "role": "assistant",
+                "content": "",
+                "tool_calls": [
+                  {
+                    "id": "call_K2Dm7bsJYqoOjDNUzHuVjII0",
+                    "type": "function",
+                    "function": {
+                      "name": "get_weather",
+                      "arguments": "{\"city\":\"深圳\"}"
+                    }
+                  }
+                ]
+              },
+              "finish_reason": "tool_calls"
+            }
+          ],
+          "usage": {
+            "prompt_tokens": 70,
+            "completion_tokens": 18,
+            "total_tokens": 88,
+            "prompt_tokens_details": {
+              "cached_tokens": 0,
+              "text_tokens": 0,
+              "audio_tokens": 0,
+              "image_tokens": 0
+            },
+            "completion_tokens_details": {
+              "text_tokens": 0,
+              "audio_tokens": 0,
+              "reasoning_tokens": 0
+            },
+            "input_tokens": 70,
+            "output_tokens": 18,
+            "input_tokens_details": null,
+            "claude_cache_creation_5_m_tokens": 0,
+            "claude_cache_creation_1_h_tokens": 0
+          }
+        },
+        "errors": []
+      },
+      "errors": []
+    },
+    {
+      "provider": "openai",
+      "model": "claude-sonnet-4-20250514",
+      "connectivity": {
+        "ok": false,
+        "http_status": 503,
+        "latency_ms": 331,
+        "error": "No available channel for model claude-sonnet-4-20250514 under group Codex (distributor) (request id: 202604210808137221521408268d9d6lmsDLTcw)",
+        "raw_response": {
+          "error": {
+            "code": "model_not_found",
+            "message": "No available channel for model claude-sonnet-4-20250514 under group Codex (distributor) (request id: 202604210808137221521408268d9d6lmsDLTcw)",
+            "type": "new_api_error"
+          }
+        },
+        "errors": [
+          "HTTP 503: No available channel for model claude-sonnet-4-20250514 under group Codex (distributor) (request id: 202604210808137221521408268d9d6lmsDLTcw)"
+        ]
+      },
+      "structured_output": {
+        "ok": false,
+        "http_status": 503,
+        "latency_ms": 335,
+        "error": "No available channel for model claude-sonnet-4-20250514 under group Codex (distributor) (request id: 20260421080814487460848268d9d6s9M6KRx8)",
+        "raw_response": {
+          "error": {
+            "code": "model_not_found",
+            "message": "No available channel for model claude-sonnet-4-20250514 under group Codex (distributor) (request id: 20260421080814487460848268d9d6s9M6KRx8)",
+            "type": "new_api_error"
+          }
+        },
+        "errors": [
+          "HTTP 503: No available channel for model claude-sonnet-4-20250514 under group Codex (distributor) (request id: 20260421080814487460848268d9d6s9M6KRx8)"
+        ]
+      },
+      "tool_use": {
+        "ok": false,
+        "http_status": 503,
+        "latency_ms": 333,
+        "error": "No available channel for model claude-sonnet-4-20250514 under group Codex (distributor) (request id: 202604210808143886700468268d9d6TgVLcS5U)",
+        "raw_response": {
+          "error": {
+            "code": "model_not_found",
+            "message": "No available channel for model claude-sonnet-4-20250514 under group Codex (distributor) (request id: 202604210808143886700468268d9d6TgVLcS5U)",
+            "type": "new_api_error"
+          }
+        },
+        "errors": [
+          "HTTP 503: No available channel for model claude-sonnet-4-20250514 under group Codex (distributor) (request id: 202604210808143886700468268d9d6TgVLcS5U)"
+        ]
+      },
+      "errors": [
+        "HTTP 503: No available channel for model claude-sonnet-4-20250514 under group Codex (distributor) (request id: 202604210808137221521408268d9d6lmsDLTcw)",
+        "HTTP 503: No available channel for model claude-sonnet-4-20250514 under group Codex (distributor) (request id: 20260421080814487460848268d9d6s9M6KRx8)",
+        "HTTP 503: No available channel for model claude-sonnet-4-20250514 under group Codex (distributor) (request id: 202604210808143886700468268d9d6TgVLcS5U)"
+      ]
+    }
+  ]
+}
