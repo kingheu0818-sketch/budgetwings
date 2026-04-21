@@ -19,12 +19,45 @@
 
 ## Key wins
 
-- 结构化输出消除了“正则只抓到第一个代码块”的脆弱路径。`noisy_multi_block_tokyo` 在 baseline 中因为第一个 ```json``` 代码块只是摘要对象而失败；structured 版本直接走 schema tool-use，成功提取出 1 条 deal。
-- 结构化输出也消除了“模型先解释、再给 JSON”导致的 `json.loads` 失败。`noisy_prefixed_commentary_osaka` 和 `recorded_2` 在 baseline 中都因为 JSON 前有解释文字而报错；structured 版本直接返回 schema 匹配对象，成功恢复。
-- 对“没有明确价格”或“明显是陷阱样本”的处理从“报错”变成了“成功返回空列表”。这让 pipeline 更容易做后续统计和降级，而不是把这类样本混成解析异常。
+- Structured output removes the "regex grabbed the wrong code block" failure mode.
+  `noisy_multi_block_tokyo` failed in baseline because the first ```json``` block
+  was only a summary object; the structured version recovered the actual deal.
+- Structured output also removes the "model explains first, JSON later" failure mode.
+  `noisy_prefixed_commentary_osaka` and `recorded_2` both failed in baseline
+  because `json.loads` saw free text before JSON; the structured version no longer
+  depends on that brittle parse step.
+- Samples with no qualifying evidence now produce clean empty results instead of
+  parse exceptions. That gives downstream pipeline code a much clearer signal.
+
+## Failure mode analysis
+
+The baseline shows `parse success rate = 46.7%` but `pydantic_validation_failures = 0`.
+This is not a contradiction — it means every baseline failure happened at the
+JSON parsing stage (regex extraction or `json.loads`), before any data reached
+Pydantic. The structured-output refactor eliminates this entire class of
+failures by construction: the LLM response is forced to satisfy the schema at
+the SDK layer, so `json.loads` is never called on LLM free-text at all.
+
+In other words, the refactor does not "improve" Pydantic acceptance; it
+removes the fragile regex+parse layer that used to fail before Pydantic even
+saw the data.
+
+## Empty results as a product decision
+
+`empty_result_count` goes from 0 -> 6. This is intentional, not a regression.
+Samples with no explicit price (e.g. "去年大概 800 块" / trap samples) used to
+raise parse errors in baseline; in structured output they correctly return
+`success=True, deals=[]`. Downstream the pipeline can now distinguish
+"parser failure" from "no qualifying deals", which enables cleaner retry
+logic and cleaner metrics.
 
 ## Known limitations
 
-- 幻觉问题还没有完全解决。本次只增加了 `evidence_text` 字段和相关埋点，**证据完整性校验** 仍然留给 T3。
-- benchmark 目前跑的是 mock LLM，用来稳定复现失败模式并做 before/after 对比；真实线上效果仍然需要结合 live provider 继续观察。
-- `ExtractedDeal` 是给 LLM 用的中间 schema，不等于最终业务契约。真正的业务约束仍然以 `models/deal.py` 和后续 validator 为准。
+- Hallucination risk is not fully solved yet. This refactor adds the
+  `evidence_text` field and basic instrumentation, but evidence completeness
+  and evidence-to-price validation are still T3 work.
+- The benchmark currently runs in mock mode to reproduce failure patterns
+  deterministically. Real-provider quality still needs continued observation.
+- `ExtractedDeal` is an LLM-facing intermediate schema, not the final business
+  contract. The authoritative downstream contract remains `models/deal.py`
+  plus later validation layers.
