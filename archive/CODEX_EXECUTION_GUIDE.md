@@ -1,3 +1,13 @@
+# ?? ARCHIVED (v2.0, 2026-04-21)
+
+This document was archived as part of the v1 -> v2 migration.
+
+- **v1 (archived)**: setup guide for scraper-first execution with early Codex workflows
+- **v2 (current)**: agent-oriented architecture under `agents/`, `tools/`, `llm/`
+- Kept for historical reference only; it should not guide current development
+
+---
+
 # BudgetWings — Codex 执行指南
 
 > 本文档是给你（项目发起人）的操作手册，告诉你怎么从零开始，用 Codex 把 PRD 变成可运行的代码，全程不需要在本地配任何开发环境。

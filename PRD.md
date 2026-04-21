@@ -1,3 +1,8 @@
+> **Stale notice (2026-04-21):** This PRD predates the T2/T3/T4-B reliability work.
+> It still captures the product direction, but it may not reflect the current
+> post-agentic architecture. For the up-to-date implementation story, see
+> `ARCHITECTURE.md` and `CASE_STUDY.md`.
+
 # BudgetWings — 低价出行情报站
 
 > **"让每一个打工人和学生党，都能用最少的钱看最大的世界。"**

@@ -1,32 +1,38 @@
-# Contributing to BudgetWings
+# Contributing
 
-BudgetWings welcomes code, data-source notes, and destination guide templates.
+## How to propose a change
 
-## Ways to contribute
+- Open an issue first for architectural changes or new dependencies.
+- Keep pull requests scoped to one main idea.
+- Major feature changes should ship with a benchmark before/after report.
 
-- Add or improve guide YAML files under `guides/`.
-- Add a new scraper under `scraper/sources/` by subclassing `BaseScraper`.
-- Improve ranking, filtering, or guide generation in `engine/`.
-- Report stale deals, broken booking links, or data-source risks in issues.
+## What you can add
 
-## Local checks
+- New LLM adapter by extending `llm/base.py::LLMAdapter`
+- New tool by extending `tools/base.py::BaseTool`
+- New destination aliases in `tools/destinations.py`
+- New prompt templates under `prompts/`
+- New evaluation metrics in `eval/metrics.py`
+- New benchmark scripts under `scripts/bench_*.py`
+
+## Quality bar
 
 ```bash
-python -m pip install -e ".[dev]"
 ruff check .
 mypy .
 pytest
 ```
 
-If PyPI access is slow, install through the Tsinghua mirror:
+## Benchmark convention
 
-```bash
-python -m pip install -i https://pypi.tuna.tsinghua.edu.cn/simple -e ".[dev]"
-```
+- Major changes belong with a benchmark report in `data/bench/`
+- Benchmark scripts live in `scripts/bench_*.py`
+- Prefer mock mode for reproducibility unless real API behavior is the point
+- Keep metric names stable so before/after reports stay comparable
 
-## Safety rules
+## Do not
 
-- Do not commit API keys, cookies, tokens, or personal data.
-- Prefer official APIs and respect data-source Terms of Service.
-- Keep prices in CNY fen and datetimes timezone-aware UTC in Python models.
-- Mark the data source and scrape time for every deal.
+- Edit `archive/` except to add new archive notices
+- Add dependencies without discussion
+- Skip the benchmark for changes that alter deal quality or agent behavior
+- Commit secrets, tokens, cookies, or personal data

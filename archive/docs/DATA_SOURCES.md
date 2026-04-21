@@ -1,3 +1,13 @@
+# ?? ARCHIVED (v2.0, 2026-04-21)
+
+This document was archived as part of the v1 -> v2 migration.
+
+- **v1 (archived)**: API-first source notes centered on Kiwi / scraper-era assumptions
+- **v2 (current)**: data collection flows through the agent + tool architecture documented in `ARCHITECTURE.md` and `CASE_STUDY.md`
+- Kept for historical reference only; it should not guide current development
+
+---
+
 # Data Sources
 
 BudgetWings starts with API-first data collection and keeps scraping polite by default.
