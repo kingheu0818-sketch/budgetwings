@@ -32,7 +32,7 @@
 ## Failure mode analysis
 
 The baseline shows `parse success rate = 46.7%` but `pydantic_validation_failures = 0`.
-This is not a contradiction — it means every baseline failure happened at the
+This is not a contradiction - it means every baseline failure happened at the
 JSON parsing stage (regex extraction or `json.loads`), before any data reached
 Pydantic. The structured-output refactor eliminates this entire class of
 failures by construction: the LLM response is forced to satisfy the schema at
@@ -45,7 +45,7 @@ saw the data.
 ## Empty results as a product decision
 
 `empty_result_count` goes from 0 -> 6. This is intentional, not a regression.
-Samples with no explicit price (e.g. "去年大概 800 块" / trap samples) used to
+Samples with no explicit price (e.g. "last year's fare was about CNY 800" / trap samples) used to
 raise parse errors in baseline; in structured output they correctly return
 `success=True, deals=[]`. Downstream the pipeline can now distinguish
 "parser failure" from "no qualifying deals", which enables cleaner retry
