@@ -13,7 +13,7 @@ from langgraph.graph import END, START, StateGraph
 
 from agents.analyst import AnalystAgent
 from agents.guide import GuideAgent
-from agents.orchestrator import build_llm
+from agents.orchestrator import build_llm, build_scout_llm
 from agents.scout import ScoutAgent
 from agents.validator import validate_deals
 from config import Settings, get_settings
@@ -506,10 +506,17 @@ def build_graph_pipeline(settings: Settings | None = None) -> GraphPipeline:
     resolved = settings or get_settings()
     tracer = _build_tracer(resolved)
     llm = build_llm(resolved, tracer=tracer)
+    scout_llm = build_scout_llm(resolved, tracer=tracer)
     search = WebSearchTool(resolved)
     fetch = WebFetchTool(resolved)
     parser = PriceParserTool(llm)
-    scout = ScoutAgent(llm, [search, fetch, parser])
+    scout = ScoutAgent(
+        scout_llm,
+        [search, fetch, parser],
+        mode=resolved.scout_mode,
+        max_iterations=resolved.scout_max_iterations,
+        max_tool_calls=resolved.scout_max_tool_calls,
+    )
     analyst = AnalystAgent(llm, [])
     knowledge_base = _build_knowledge_base()
     guide = GuideAgent(llm, [search], knowledge_base=knowledge_base)

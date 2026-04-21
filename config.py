@@ -28,6 +28,16 @@ class Settings(BaseSettings):
     llm_provider: Literal["claude", "openai"] = "claude"
     llm_model: str = "claude-sonnet-4-20250514"
     llm_timeout_seconds: float = Field(default=60.0, ge=1.0)
+    scout_mode: Literal["legacy", "agentic"] = Field(
+        default="legacy",
+        validation_alias="BUDGETWINGS_SCOUT_MODE",
+    )
+    scout_agentic_model: str = Field(
+        default="gpt-5.4",
+        validation_alias="BUDGETWINGS_SCOUT_AGENTIC_MODEL",
+    )
+    scout_max_iterations: int = Field(default=8, ge=1)
+    scout_max_tool_calls: int = Field(default=12, ge=1)
 
     skyscanner_api_key: str | None = Field(default=None, validation_alias="SKYSCANNER_API_KEY")
     kiwi_api_key: str | None = Field(default=None, validation_alias="KIWI_API_KEY")

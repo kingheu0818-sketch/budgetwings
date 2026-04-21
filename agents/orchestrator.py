@@ -95,13 +95,39 @@ def build_llm(settings: Settings | None = None, tracer: LLMTracer | None = None)
     )
 
 
+def build_scout_llm(
+    settings: Settings | None = None,
+    tracer: LLMTracer | None = None,
+) -> LLMAdapter:
+    resolved = settings or get_settings()
+    if resolved.scout_mode != "agentic":
+        return build_llm(resolved, tracer=tracer)
+    if not resolved.openai_api_key:
+        msg = "OPENAI_API_KEY is required for agentic scout mode"
+        raise ValueError(msg)
+    return OpenAIAdapter(
+        api_key=resolved.openai_api_key,
+        model=resolved.scout_agentic_model,
+        timeout_seconds=resolved.llm_timeout_seconds,
+        base_url=resolved.openai_base_url,
+        tracer=tracer,
+    )
+
+
 def build_orchestrator(settings: Settings | None = None) -> Orchestrator:
     resolved = settings or get_settings()
     llm = build_llm(resolved)
+    scout_llm = build_scout_llm(resolved)
     search = WebSearchTool(resolved)
     fetch = WebFetchTool(resolved)
     parser = PriceParserTool(llm)
-    scout = ScoutAgent(llm, [search, fetch, parser])
+    scout = ScoutAgent(
+        scout_llm,
+        [search, fetch, parser],
+        mode=resolved.scout_mode,
+        max_iterations=resolved.scout_max_iterations,
+        max_tool_calls=resolved.scout_max_tool_calls,
+    )
     analyst = AnalystAgent(llm, [])
     guide = GuideAgent(llm, [search])
     return Orchestrator(scout=scout, analyst=analyst, guide=guide)

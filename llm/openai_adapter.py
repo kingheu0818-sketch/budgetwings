@@ -89,10 +89,14 @@ class OpenAIAdapter(LLMAdapter):
             raise LLMError(msg) from exc
 
         message = response.choices[0].message
+        normalized_content = self._normalized_content_blocks(message)
         result = {
             "provider": "openai",
-            "content": self._message_content_to_text(message),
+            "stop_reason": self._normalize_stop_reason(response.choices[0].finish_reason),
+            "content": normalized_content,
+            "text": self._message_content_to_text(message),
             "tool_calls": [self._tool_call_to_dict(call) for call in message.tool_calls or []],
+            "usage": self._usage_to_dict(response),
         }
         self._end_llm_span(
             span_id,
@@ -173,6 +177,36 @@ class OpenAIAdapter(LLMAdapter):
                 "arguments": getattr(call.function, "arguments", None),
             },
         }
+
+    def _normalized_content_blocks(self, message: Any) -> list[dict[str, Any]]:
+        blocks: list[dict[str, Any]] = []
+        text = self._message_content_to_text(message)
+        if text:
+            blocks.append({"type": "text", "text": text})
+        for call in getattr(message, "tool_calls", None) or []:
+            arguments = getattr(call.function, "arguments", None)
+            parsed_arguments: Any
+            if isinstance(arguments, str):
+                try:
+                    parsed_arguments = json.loads(arguments)
+                except json.JSONDecodeError:
+                    parsed_arguments = arguments
+            else:
+                parsed_arguments = arguments
+            blocks.append(
+                {
+                    "type": "tool_call",
+                    "id": getattr(call, "id", None),
+                    "name": getattr(call.function, "name", None),
+                    "arguments": parsed_arguments,
+                }
+            )
+        return blocks
+
+    def _normalize_stop_reason(self, finish_reason: str | None) -> str:
+        if finish_reason == "tool_calls":
+            return "tool_use"
+        return finish_reason or "end_turn"
 
     def _message_content_to_text(self, message: Any) -> str:
         content = getattr(message, "content", None)
