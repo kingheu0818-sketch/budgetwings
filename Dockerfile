@@ -16,7 +16,6 @@ COPY engine ./engine
 COPY llm ./llm
 COPY models ./models
 COPY rag ./rag
-COPY scraper ./scraper
 COPY tools ./tools
 COPY cli.py config.py ./
 

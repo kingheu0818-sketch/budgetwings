@@ -16,7 +16,6 @@ The v2 architecture is described in `ARCHITECTURE.md`.
 - `db/`: SQLite persistence and analytics
 - `rag/`: local knowledge base for guide generation
 - `mcp_server/`: MCP server entry for Claude Desktop and other clients
-- `scraper/`: legacy crawler layer kept for compatibility
 
 ## Quick Start
 
@@ -168,8 +167,8 @@ Pages included in the web app:
 
 The repository is configured for static deployment on GitHub Pages.
 
-- Workflow: [deploy.yml](D:/yu/project/budgetwings/.github/workflows/deploy.yml)
-- Daily data refresh: [daily_run.yml](D:/yu/project/budgetwings/.github/workflows/daily_run.yml)
+- Workflow: [deploy.yml](.github/workflows/deploy.yml)
+- Daily data refresh: [daily_run.yml](.github/workflows/daily_run.yml)
 
 Deploy flow:
 
