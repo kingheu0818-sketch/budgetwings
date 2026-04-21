@@ -130,14 +130,14 @@ def test_price_parser_tool_extracts_deals_with_fake_llm() -> None:
     structured = {
         "deals": [
             {
-                "origin_city": "Shenzhen",
-                "destination_city": "Bangkok",
+                "origin_city": "深圳",
+                "destination_city": "曼谷",
                 "price_cny": 199,
                 "transport_mode": "flight",
                 "departure_date": date.today().isoformat(),
                 "booking_url": "https://example.com/book",
                 "source_url": "https://example.com/source",
-                "evidence_text": "Shenzhen to Bangkok CNY 199",
+                "evidence_text": "深圳飞曼谷 199",
             }
         ]
     }

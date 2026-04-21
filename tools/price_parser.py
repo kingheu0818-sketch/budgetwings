@@ -11,6 +11,8 @@ from pydantic import BaseModel, ConfigDict, Field, ValidationError
 from llm.base import ChatMessage, LLMAdapter
 from models.deal import Deal, TransportMode
 from tools.base import BaseTool, ToolInput, ToolOutput
+from tools.destinations import DESTINATION_ALIASES
+from tools.evidence_validator import EvidenceValidator
 
 logger = logging.getLogger(__name__)
 
@@ -81,8 +83,18 @@ class PriceParserTool(BaseTool):
     description = "Extract structured low-price travel deals from unstructured web text."
     input_model = PriceParserInput
 
-    def __init__(self, llm: LLMAdapter | None = None) -> None:
+    def __init__(
+        self,
+        llm: LLMAdapter | None = None,
+        evidence_validator: EvidenceValidator | None = None,
+    ) -> None:
         self.llm = llm
+        self.evidence_validator = evidence_validator or EvidenceValidator(DESTINATION_ALIASES)
+        self.last_extracted_count = 0
+        self.last_accepted_count = 0
+        self.last_rejected_count = 0
+        self.last_rejection_log: dict[str, int] = {}
+        self.last_false_positive_rejections = 0
 
     async def execute(self, input: ToolInput) -> ToolOutput:
         params = PriceParserInput.model_validate(input)
@@ -108,7 +120,15 @@ class PriceParserTool(BaseTool):
         pydantic_error_count = 0
         deals: list[Deal] = []
         evidence_missing_count = 0
+        extracted_count = 0
+        rejected_deal_count = 0
+        rejection_log: dict[str, int] = {}
         output: ToolOutput
+
+        self.last_extracted_count = 0
+        self.last_accepted_count = 0
+        self.last_rejected_count = 0
+        self.last_rejection_log = {}
 
         try:
             payload = await self.llm.extract_structured(
@@ -122,20 +142,39 @@ class PriceParserTool(BaseTool):
             llm_structured_call_ok = True
             extracted = ExtractedDealList.model_validate(payload)
             pydantic_validation_ok = True
+            extracted_count = len(extracted.deals)
             evidence_missing_count = sum(
                 1 for item in extracted.deals if not (item.evidence_text or "").strip()
             )
-            extracted_deals = [
-                self._deal_from_extracted(item, params.origin_city, params.max_price_cny)
-                for item in extracted.deals
-            ]
-            deals = [deal for deal in extracted_deals if deal is not None]
+            for item in extracted.deals:
+                result = self.evidence_validator.validate(item, params.text)
+                if not result.is_valid:
+                    rejected_deal_count += 1
+                    for reason in result.reasons:
+                        rejection_log[reason.value] = rejection_log.get(reason.value, 0) + 1
+                    logger.info(
+                        "evidence rejected",
+                        extra={
+                            "destination": item.destination_city,
+                            "price_cny": item.price_cny,
+                            "reasons": [reason.value for reason in result.reasons],
+                        },
+                    )
+                    continue
+                deal = self._deal_from_extracted(item, params.origin_city, params.max_price_cny)
+                if deal is not None:
+                    deals.append(deal)
             output = ToolOutput(success=True, data=[deal.model_dump(mode="json") for deal in deals])
         except ValidationError as exc:
             pydantic_error_count = len(exc.errors())
             output = ToolOutput(success=False, error=str(exc))
         except Exception as exc:
             output = ToolOutput(success=False, error=str(exc))
+
+        self.last_extracted_count = extracted_count
+        self.last_accepted_count = len(deals)
+        self.last_rejected_count = rejected_deal_count
+        self.last_rejection_log = dict(rejection_log)
 
         logger.info(
             "price_parser result",
@@ -148,6 +187,15 @@ class PriceParserTool(BaseTool):
                 "evidence_missing_count": evidence_missing_count,
             },
         )
+        logger.info(
+            "price_parser evidence summary",
+            extra={
+                "extracted_count": extracted_count,
+                "accepted_count": len(deals),
+                "rejected_count": rejected_deal_count,
+                "rejection_by_reason": rejection_log,
+            },
+        )
         if tracer is not None and span_id is not None:
             tracer.end_span(
                 span_id,
@@ -155,6 +203,7 @@ class PriceParserTool(BaseTool):
                     "success": output.success,
                     "deals_out": len(deals),
                     "error": output.error,
+                    "rejection_by_reason": rejection_log,
                 },
                 duration_ms=(perf_counter() - started_at) * 1000,
             )
