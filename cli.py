@@ -8,6 +8,8 @@ from pathlib import Path
 
 from agents.graph import build_graph_pipeline
 from agents.orchestrator import build_orchestrator
+from eval.compare import compare_reports, load_report, render_comparison_markdown
+from eval.runner import evaluate_pipeline
 from models.deal import Deal
 from models.persona import PersonaType
 
@@ -32,6 +34,24 @@ async def guide_command(args: argparse.Namespace) -> None:
     output_path = output_dir / f"{deal.id}.md"
     output_path.write_text(markdown + "\n", encoding="utf-8")
     print(f"Saved guide -> {output_path}")
+
+
+async def eval_command(args: argparse.Namespace) -> None:
+    report = await evaluate_pipeline(
+        cities=parse_cities(args.city),
+        persona_type=PersonaType(args.persona),
+        top_n=args.top,
+        engine=args.engine,
+        save=args.save,
+    )
+    print(report["markdown"])
+
+
+def eval_compare_command(args: argparse.Namespace) -> None:
+    report1 = load_report(Path(args.report1))
+    report2 = load_report(Path(args.report2))
+    diff = compare_reports(report1, report2)
+    print(render_comparison_markdown(diff))
 
 
 def find_deal(deal_id: str, deals_dir: Path = Path("data/deals")) -> Deal:
@@ -88,13 +108,37 @@ def build_parser() -> argparse.ArgumentParser:
     guide_parser.add_argument("--days", type=int, default=2)
     guide_parser.set_defaults(handler=guide_command)
 
+    eval_parser = subparsers.add_parser("eval", help="Evaluate pipeline output quality")
+    eval_parser.add_argument("--city", required=True, help="One or more cities separated by commas")
+    eval_parser.add_argument(
+        "--persona",
+        choices=[item.value for item in PersonaType],
+        default="worker",
+    )
+    eval_parser.add_argument("--top", type=int, default=10)
+    eval_parser.add_argument(
+        "--engine",
+        choices=["graph", "legacy"],
+        default="graph",
+        help="Pipeline engine to use when live evaluation is enabled.",
+    )
+    eval_parser.add_argument("--save", action="store_true", help="Save JSON and Markdown reports")
+    eval_parser.set_defaults(handler=eval_command)
+
+    compare_parser = subparsers.add_parser("eval-compare", help="Compare two evaluation reports")
+    compare_parser.add_argument("--report1", required=True)
+    compare_parser.add_argument("--report2", required=True)
+    compare_parser.set_defaults(handler=eval_compare_command)
+
     return parser
 
 
 def main() -> None:
     logging.basicConfig(level=logging.INFO, format="%(levelname)s:%(name)s:%(message)s")
     args = build_parser().parse_args()
-    asyncio.run(args.handler(args))
+    result = args.handler(args)
+    if asyncio.iscoroutine(result):
+        asyncio.run(result)
 
 
 if __name__ == "__main__":

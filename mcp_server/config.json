@@ -1,0 +1,21 @@
+{
+  "mcpServers": {
+    "budgetwings": {
+      "command": "python",
+      "args": ["-m", "mcp_server.server"],
+      "cwd": "D:\\yu\\project\\budgetwings",
+      "env": {
+        "BUDGETWINGS_LLM_PROVIDER": "openai",
+        "BUDGETWINGS_LLM_MODEL": "gpt-5.4-mini",
+        "OPENAI_API_KEY": "your_openai_key",
+        "OPENAI_BASE_URL": "https://api.openai.com/v1",
+        "TAVILY_API_KEY": "your_tavily_key"
+      }
+    }
+  },
+  "_comment": [
+    "Copy the budgetwings object into Claude Desktop's claude_desktop_config.json.",
+    "Replace command/cwd with your local Python executable and repository path if needed.",
+    "All API keys should come from your local environment or secrets manager."
+  ]
+}

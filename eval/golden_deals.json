@@ -1,0 +1,162 @@
+[
+  {
+    "origin_city": "北京",
+    "destination_city": "东京",
+    "price_range_min": 700,
+    "price_range_max": 1800,
+    "transport_mode": "flight",
+    "is_international": true
+  },
+  {
+    "origin_city": "北京",
+    "destination_city": "首尔",
+    "price_range_min": 450,
+    "price_range_max": 1200,
+    "transport_mode": "flight",
+    "is_international": true
+  },
+  {
+    "origin_city": "北京",
+    "destination_city": "上海",
+    "price_range_min": 250,
+    "price_range_max": 850,
+    "transport_mode": "train",
+    "is_international": false
+  },
+  {
+    "origin_city": "北京",
+    "destination_city": "清迈",
+    "price_range_min": 800,
+    "price_range_max": 1800,
+    "transport_mode": "flight",
+    "is_international": true
+  },
+  {
+    "origin_city": "上海",
+    "destination_city": "大阪",
+    "price_range_min": 800,
+    "price_range_max": 1900,
+    "transport_mode": "flight",
+    "is_international": true
+  },
+  {
+    "origin_city": "上海",
+    "destination_city": "曼谷",
+    "price_range_min": 500,
+    "price_range_max": 1500,
+    "transport_mode": "flight",
+    "is_international": true
+  },
+  {
+    "origin_city": "上海",
+    "destination_city": "重庆",
+    "price_range_min": 180,
+    "price_range_max": 650,
+    "transport_mode": "train",
+    "is_international": false
+  },
+  {
+    "origin_city": "深圳",
+    "destination_city": "清迈",
+    "price_range_min": 450,
+    "price_range_max": 1400,
+    "transport_mode": "flight",
+    "is_international": true
+  },
+  {
+    "origin_city": "深圳",
+    "destination_city": "曼谷",
+    "price_range_min": 400,
+    "price_range_max": 1300,
+    "transport_mode": "flight",
+    "is_international": true
+  },
+  {
+    "origin_city": "深圳",
+    "destination_city": "成都",
+    "price_range_min": 280,
+    "price_range_max": 1000,
+    "transport_mode": "flight",
+    "is_international": false
+  },
+  {
+    "origin_city": "广州",
+    "destination_city": "首尔",
+    "price_range_min": 500,
+    "price_range_max": 1500,
+    "transport_mode": "flight",
+    "is_international": true
+  },
+  {
+    "origin_city": "广州",
+    "destination_city": "新加坡",
+    "price_range_min": 550,
+    "price_range_max": 1700,
+    "transport_mode": "flight",
+    "is_international": true
+  },
+  {
+    "origin_city": "广州",
+    "destination_city": "三亚",
+    "price_range_min": 220,
+    "price_range_max": 900,
+    "transport_mode": "flight",
+    "is_international": false
+  },
+  {
+    "origin_city": "成都",
+    "destination_city": "大阪",
+    "price_range_min": 750,
+    "price_range_max": 1800,
+    "transport_mode": "flight",
+    "is_international": true
+  },
+  {
+    "origin_city": "成都",
+    "destination_city": "上海",
+    "price_range_min": 260,
+    "price_range_max": 880,
+    "transport_mode": "train",
+    "is_international": false
+  },
+  {
+    "origin_city": "成都",
+    "destination_city": "重庆",
+    "price_range_min": 40,
+    "price_range_max": 180,
+    "transport_mode": "bus",
+    "is_international": false
+  },
+  {
+    "origin_city": "杭州",
+    "destination_city": "东京",
+    "price_range_min": 750,
+    "price_range_max": 1800,
+    "transport_mode": "flight",
+    "is_international": true
+  },
+  {
+    "origin_city": "杭州",
+    "destination_city": "首尔",
+    "price_range_min": 450,
+    "price_range_max": 1300,
+    "transport_mode": "flight",
+    "is_international": true
+  },
+  {
+    "origin_city": "杭州",
+    "destination_city": "三亚",
+    "price_range_min": 250,
+    "price_range_max": 950,
+    "transport_mode": "flight",
+    "is_international": false
+  },
+  {
+    "origin_city": "杭州",
+    "destination_city": "重庆",
+    "price_range_min": 180,
+    "price_range_max": 680,
+    "transport_mode": "train",
+    "is_international": false
+  }
+]

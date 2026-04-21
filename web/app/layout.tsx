@@ -4,15 +4,13 @@ import type {ReactNode} from 'react';
 
 export const metadata: Metadata = {
   title: 'BudgetWings',
-  description: 'AI-powered low-cost travel intelligence.'
+  description: 'Agent-first cheap travel discovery, guides, evaluation, and deployment dashboard.',
 };
 
 export default function RootLayout({children}: Readonly<{children: ReactNode}>) {
   return (
     <html lang="zh-CN">
-      <body className="bg-paper text-ink antialiased dark:bg-zinc-950 dark:text-zinc-100">
-        {children}
-      </body>
+      <body>{children}</body>
     </html>
   );
 }

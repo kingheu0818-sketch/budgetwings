@@ -22,7 +22,7 @@ jobs:
           cache: pip
 
       - name: Install Python dependencies
-        run: python -m pip install -e .
+        run: python -m pip install -e ".[dev]"
 
       - name: Run agent pipeline if OpenAI key exists
         env:
@@ -34,18 +34,31 @@ jobs:
           if [ -n "$OPENAI_API_KEY" ]; then
             export BUDGETWINGS_LLM_PROVIDER="openai"
             export BUDGETWINGS_LLM_MODEL="${BUDGETWINGS_LLM_MODEL_SECRET:-gpt-5.4-mini}"
-            python cli.py run --city 深圳 --persona worker --top 10
+            python cli.py run --city 深圳,上海,北京,广州,成都,杭州 --persona worker --top 10 --engine graph
           else
             echo "OPENAI_API_KEY is not configured; skipping agent pipeline."
           fi
 
-      - name: Commit data changes
+      - name: Run evaluation report
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          OPENAI_BASE_URL: ${{ secrets.OPENAI_BASE_URL }}
+          TAVILY_API_KEY: ${{ secrets.TAVILY_API_KEY }}
+          BUDGETWINGS_LLM_MODEL_SECRET: ${{ secrets.BUDGETWINGS_LLM_MODEL }}
+        run: |
+          if [ -n "$OPENAI_API_KEY" ]; then
+            export BUDGETWINGS_LLM_PROVIDER="openai"
+            export BUDGETWINGS_LLM_MODEL="${BUDGETWINGS_LLM_MODEL_SECRET:-gpt-5.4-mini}"
+          fi
+          python cli.py eval --city 深圳,上海,北京,广州,成都,杭州 --persona worker --top 10 --engine graph --save
+
+      - name: Commit generated content
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add data
+          git add data eval/reports
           if git diff --cached --quiet; then
-            echo "No data changes to commit."
+            echo "No generated changes to commit."
           else
             git commit -m "data: update deals for $(date -u +%F)"
             git push

@@ -32,6 +32,9 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+mcp = [
+  "mcp>=1.0.0"
+]
 dev = [
   "pytest>=8.0.0",
   "ruff>=0.4.0",
@@ -44,9 +47,11 @@ packages = [
   "agents",
   "bot",
   "engine",
+  "eval",
   "llm",
   "db",
   "models",
+  "mcp_server",
   "observability",
   "rag",
   "scraper",
@@ -73,8 +78,10 @@ packages = [
   "bot",
   "db",
   "engine",
+  "eval",
   "llm",
   "models",
+  "mcp_server",
   "observability",
   "rag",
   "scraper",
