@@ -316,4 +316,64 @@ BudgetWings is not "I built a travel site." It is "I designed, measured, and
 iterated on a small LLM system with explicit defenses against the ways these
 systems fail."
 
+---
+
+## Independent evaluation
+
+After T2-T4-B shipped, a separate Codex agent was given read-only access to
+the repository and real API credentials, with instructions to run the full
+pipeline and report what actually works.
+
+### V1 evaluation (pre-T6)
+
+Score: **3/5**
+
+The evaluator found one Critical issue: `OpenAIAdapter.extract_structured()`
+relied on OpenAI's `response_format` parameter, which the IkunCode proxy did
+not support. Every live `price_parser` call failed (0/5), and legacy Scout
+spent 186 seconds to produce 0 deals.
+
+Agentic mode partially worked because it used `chat_with_tools` instead of
+`extract_structured`, but persistence was inconsistent: the run log reported
+2 saved deals while the output file was empty.
+
+### T6 hotfix
+
+Three fixes shipped in response:
+
+1. `extract_structured` gained a tool-use fallback: try `response_format`
+   first, fall back to forced `tool_choice` if the proxy rejects it
+2. Deal snapshots now include mode and timestamp in the filename, preventing
+   same-day overwrites
+3. `evidence_text` is preserved in `Deal.notes` for post-hoc auditability
+
+### V2 evaluation (post-T6)
+
+Score: **4/5**
+
+| Metric | V1 | V2 |
+|---|---|---|
+| price_parser live success | 0/5 | 5/5 |
+| Legacy Scout deals | 0 | 5 |
+| Agentic Scout deals | 2 (inconsistent) | 3 (consistent) |
+| Deal file overwrite | yes | no |
+
+The Critical issue was resolved. The evaluator noted that extraction yield on
+some samples was still low (3 of 5 returned zero deals), attributed to strict
+evidence validation and degraded sample input quality rather than a provider
+failure.
+
+### What this process proved
+
+The evaluation loop - build, ship, independent test, fix, retest - is more
+valuable than any single feature. It surfaced a provider-compatibility gap that
+unit tests and mock benchmarks could not catch, and it forced a fix that made
+the system genuinely more robust.
+
+The 3/5 -> 4/5 arc is also a better portfolio story than a clean 5/5 would
+have been. It shows that the project can absorb real feedback and improve,
+which is harder to demonstrate than getting everything right on the first try.
+
 Full commit log: `git log --oneline`
+
+Full evaluation reports: [`data/eval/EVAL_REPORT.md`](data/eval/EVAL_REPORT.md) and [`data/eval/EVAL_REPORT_V2.md`](data/eval/EVAL_REPORT_V2.md)
