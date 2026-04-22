@@ -2,11 +2,14 @@ from __future__ import annotations
 
 import asyncio
 import json
+import logging
 from importlib import import_module
 from typing import Any
 
 from llm.base import ChatMessage, LLMAdapter, LLMError, ToolCallResult, ToolSchema
 from observability.tracer import LLMTracer
+
+logger = logging.getLogger(__name__)
 
 
 class OpenAIAdapter(LLMAdapter):
@@ -122,50 +125,122 @@ class OpenAIAdapter(LLMAdapter):
             },
         )
         try:
-            response = await asyncio.wait_for(
-                self._client.chat.completions.create(
-                    model=self.model,
+            structured = await self._extract_via_response_format(
+                messages=messages,
+                schema=schema,
+                schema_name=schema_name,
+                schema_description=schema_description,
+            )
+        except Exception as exc:
+            try:
+                logger.warning(
+                    "response_format structured output failed, falling back to tool-use extraction",
+                    extra={"error": str(exc), "schema_name": schema_name},
+                )
+                structured = await self._extract_via_tool_use(
                     messages=messages,
-                    response_format={
-                        "type": "json_schema",
-                        "json_schema": {
-                            "name": schema_name,
-                            "schema": schema,
-                            "strict": True,
-                        },
-                    },
-                ),
-                timeout=self.timeout_seconds,
-            )
-        except Exception as exc:
-            self._end_llm_span(span_id, {"error": str(exc)}, started_at=started_at)
-            msg = "OpenAI structured extraction request failed"
-            raise LLMError(msg) from exc
-
-        message = response.choices[0].message
-        parsed = getattr(message, "parsed", None)
-        try:
-            if isinstance(parsed, dict):
-                structured = parsed
-            else:
-                content = self._message_content_to_text(message)
-                structured = json.loads(content)
-        except Exception as exc:
-            self._end_llm_span(
-                span_id,
-                {"error": f"Invalid structured JSON: {exc}"},
-                token_usage=self._usage_to_dict(response),
-                started_at=started_at,
-            )
-            msg = "OpenAI returned invalid structured JSON"
-            raise LLMError(msg) from exc
+                    schema=schema,
+                    schema_name=schema_name,
+                    schema_description=schema_description,
+                )
+            except Exception as fallback_exc:
+                self._end_llm_span(
+                    span_id,
+                    {"error": f"{exc}; fallback={fallback_exc}"},
+                    started_at=started_at,
+                )
+                msg = "OpenAI structured extraction request failed"
+                raise LLMError(msg) from fallback_exc
 
         self._end_llm_span(
             span_id,
             structured,
-            token_usage=self._usage_to_dict(response),
             started_at=started_at,
         )
+        return structured
+
+    async def _extract_via_response_format(
+        self,
+        messages: list[ChatMessage],
+        schema: dict[str, Any],
+        schema_name: str,
+        schema_description: str,
+    ) -> dict[str, Any]:
+        del schema_description
+        response = await asyncio.wait_for(
+            self._client.chat.completions.create(
+                model=self.model,
+                messages=messages,
+                response_format={
+                    "type": "json_schema",
+                    "json_schema": {
+                        "name": schema_name,
+                        "schema": schema,
+                        "strict": True,
+                    },
+                },
+            ),
+            timeout=self.timeout_seconds,
+        )
+        return self._structured_from_response_message(response.choices[0].message)
+
+    async def _extract_via_tool_use(
+        self,
+        messages: list[ChatMessage],
+        schema: dict[str, Any],
+        schema_name: str,
+        schema_description: str,
+    ) -> dict[str, Any]:
+        response = await asyncio.wait_for(
+            self._client.chat.completions.create(
+                model=self.model,
+                messages=messages,
+                tools=[
+                    {
+                        "type": "function",
+                        "function": {
+                            "name": schema_name,
+                            "description": schema_description,
+                            "parameters": schema,
+                        },
+                    }
+                ],
+                tool_choice={"type": "function", "function": {"name": schema_name}},
+            ),
+            timeout=self.timeout_seconds,
+        )
+        message = response.choices[0].message
+        tool_calls = getattr(message, "tool_calls", None) or []
+        if not tool_calls:
+            msg = "OpenAI tool-use extraction returned no tool call"
+            raise LLMError(msg)
+        arguments = getattr(tool_calls[0].function, "arguments", None)
+        if not isinstance(arguments, str):
+            msg = "OpenAI tool-use extraction returned invalid tool arguments"
+            raise LLMError(msg)
+        try:
+            structured = json.loads(arguments)
+        except Exception as exc:
+            msg = "OpenAI tool-use extraction returned invalid JSON arguments"
+            raise LLMError(msg) from exc
+        if not isinstance(structured, dict):
+            msg = "OpenAI tool-use extraction returned non-object JSON arguments"
+            raise LLMError(msg)
+        return structured
+
+    def _structured_from_response_message(self, message: Any) -> dict[str, Any]:
+        parsed = getattr(message, "parsed", None)
+        if isinstance(parsed, dict):
+            return parsed
+        content = self._message_content_to_text(message)
+        try:
+            structured = json.loads(content)
+        except Exception as exc:
+            msg = "OpenAI returned invalid structured JSON"
+            raise LLMError(msg) from exc
+        if not isinstance(structured, dict):
+            msg = "OpenAI returned non-object structured JSON"
+            raise LLMError(msg)
         return structured
 
     def _tool_call_to_dict(self, call: Any) -> dict[str, Any]:

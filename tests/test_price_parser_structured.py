@@ -5,6 +5,7 @@ from datetime import date, timedelta
 from typing import Any, cast
 
 from llm.base import ChatMessage, LLMAdapter, LLMError, ToolCallResult, ToolSchema
+from llm.openai_adapter import OpenAIAdapter
 from models.deal import Deal
 from tools.price_parser import PriceParserInput, PriceParserTool
 
@@ -95,3 +96,47 @@ def test_price_parser_execute_allows_empty_structured_result() -> None:
 
     assert result.success is True
     assert result.data == []
+
+
+def test_openai_extract_structured_falls_back_to_tool_use() -> None:
+    adapter = cast(Any, object.__new__(OpenAIAdapter))
+    adapter.model = "fake-model"
+    adapter.timeout_seconds = 1.0
+    adapter.tracer = None
+
+    calls: list[str] = []
+
+    async def fail_response_format(
+        messages: list[ChatMessage],
+        schema: dict[str, Any],
+        schema_name: str,
+        schema_description: str,
+    ) -> dict[str, Any]:
+        del messages, schema, schema_name, schema_description
+        calls.append("response_format")
+        raise RuntimeError("response_format unsupported")
+
+    async def succeed_tool_use(
+        messages: list[ChatMessage],
+        schema: dict[str, Any],
+        schema_name: str,
+        schema_description: str,
+    ) -> dict[str, Any]:
+        del messages, schema, schema_name, schema_description
+        calls.append("tool_use")
+        return {"deals": []}
+
+    adapter._extract_via_response_format = fail_response_format
+    adapter._extract_via_tool_use = succeed_tool_use
+
+    result = asyncio.run(
+        adapter.extract_structured(
+            messages=[{"role": "user", "content": "extract deals"}],
+            schema={"type": "object"},
+            schema_name="deal_list",
+            schema_description="Extract deals",
+        )
+    )
+
+    assert result == {"deals": []}
+    assert calls == ["response_format", "tool_use"]
