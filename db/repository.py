@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 from collections.abc import Mapping
 from datetime import UTC, datetime, timedelta
+from pathlib import Path
 
 from sqlalchemy.engine import Engine
 from sqlmodel import Session, select
@@ -10,6 +11,20 @@ from sqlmodel import Session, select
 from db.engine import create_db_and_tables, get_database_engine
 from db.models import DealRecord, PriceHistory, SearchLog
 from models.deal import Deal
+
+
+def build_deals_snapshot_path(
+    output_dir: Path,
+    *,
+    mode: str = "run",
+    now: datetime | None = None,
+) -> Path:
+    timestamp = now or datetime.now()
+    safe_mode = _snapshot_mode(mode)
+    filename = (
+        f"{timestamp.date().isoformat()}_{safe_mode}_{timestamp.strftime('%H%M%S')}.json"
+    )
+    return output_dir / filename
 
 
 def save_deals(
@@ -116,3 +131,9 @@ def _ensure_engine(engine: Engine | None) -> Engine:
     resolved_engine = engine or get_database_engine()
     create_db_and_tables(resolved_engine)
     return resolved_engine
+
+
+def _snapshot_mode(mode: str) -> str:
+    normalized = "".join(char.lower() if char.isalnum() else "_" for char in mode)
+    collapsed = normalized.strip("_")
+    return collapsed or "run"

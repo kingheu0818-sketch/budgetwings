@@ -248,7 +248,7 @@ class PriceParserTool(BaseTool):
             "operator": item.operator,
             "booking_url": self._booking_url(item, origin_city, destination_city),
             "source_url": item.source_url,
-            "notes": None,
+            "notes": (item.evidence_text or "").strip() or None,
         }
         return Deal.model_validate(payload)
 

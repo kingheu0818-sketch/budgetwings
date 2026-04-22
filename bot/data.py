@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import logging
+from datetime import datetime
 from pathlib import Path
 
 from engine.deal_ranker import rank_deals
@@ -13,8 +14,10 @@ logger = logging.getLogger(__name__)
 
 
 def latest_deals_file(deals_dir: Path = DEALS_DIR) -> Path | None:
-    files = sorted(deals_dir.glob("*.json"), reverse=True)
-    return files[0] if files else None
+    files = list(deals_dir.glob("*.json"))
+    if not files:
+        return None
+    return max(files, key=_deals_file_sort_key)
 
 
 def load_latest_deals(deals_dir: Path = DEALS_DIR) -> list[Deal]:
@@ -81,3 +84,19 @@ def format_deal_message(deal: Deal) -> str:
         f"📅 {date_label}\n"
         f"🔗 订票链接：{deal.booking_url}"
     )
+
+
+def _deals_file_sort_key(path: Path) -> tuple[datetime, str]:
+    stem = path.stem
+    parts = stem.split("_")
+    if len(parts) >= 3:
+        date_part = parts[0]
+        time_part = parts[-1]
+        try:
+            return datetime.strptime(f"{date_part}_{time_part}", "%Y-%m-%d_%H%M%S"), stem
+        except ValueError:
+            pass
+    try:
+        return datetime.strptime(stem, "%Y-%m-%d"), stem
+    except ValueError:
+        return datetime.min, stem

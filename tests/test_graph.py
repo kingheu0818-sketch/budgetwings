@@ -34,6 +34,7 @@ class FakeAnalyst:
         persona_type: PersonaType,
         top_n: int = 10,
     ) -> list[Deal]:
+        del persona_type
         return sorted(deals, key=lambda deal: deal.price_cny_fen)[:top_n]
 
 
@@ -45,6 +46,7 @@ class FakeGuide:
         days: int = 2,
         knowledge_context: str | None = None,
     ) -> str:
+        del days
         return (
             f"# {deal.destination_city}\n\n"
             f"Persona: {persona_type.value}\n"
@@ -60,10 +62,12 @@ def make_deal(
     destination_city: str = "清迈",
     destination_country: str | None = "Thailand",
     departure_days: int = 14,
+    base_date: date | None = None,
     booking_url: str = "https://example.com/book",
     is_round_trip: bool = False,
     return_date: date | None = None,
 ) -> Deal:
+    departure_base = base_date or date.today()
     return Deal.model_validate(
         {
             "source": "test",
@@ -72,7 +76,7 @@ def make_deal(
             "destination_country": destination_country,
             "price_cny_fen": price,
             "transport_mode": transport_mode,
-            "departure_date": (date.today() + timedelta(days=departure_days)).isoformat(),
+            "departure_date": (departure_base + timedelta(days=departure_days)).isoformat(),
             "return_date": return_date.isoformat() if return_date else None,
             "is_round_trip": is_round_trip,
             "booking_url": booking_url,
@@ -99,7 +103,7 @@ def test_validator_rejects_invalid_deals() -> None:
     invalid_deals = [
         make_deal(price=0),
         make_deal(price=400_000, transport_mode=TransportMode.TRAIN),
-        make_deal(departure_days=-1),
+        make_deal(departure_days=-1, base_date=today),
         make_deal(booking_url="http://example.com/book"),
         make_deal(origin_city="深圳", destination_city="深圳"),
     ]

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
+from pathlib import Path
 
 from sqlalchemy.engine import Engine
 from sqlalchemy.pool import StaticPool
@@ -9,7 +10,13 @@ from sqlmodel import create_engine
 from db.analytics import get_cheapest_ever, get_price_trend, is_historical_low
 from db.engine import create_db_and_tables
 from db.models import SearchLog
-from db.repository import get_latest_deals, get_price_history, save_deals, save_search_log
+from db.repository import (
+    build_deals_snapshot_path,
+    get_latest_deals,
+    get_price_history,
+    save_deals,
+    save_search_log,
+)
 from models.deal import Deal, TransportMode
 
 
@@ -73,6 +80,33 @@ def test_price_analytics() -> None:
 
     trend = get_price_trend("深圳", "清迈", days=30, engine=engine)
     assert [item["price_cny_fen"] for item in trend] == [100000, 68000]
+
+
+def test_build_deals_snapshot_path_does_not_overwrite_same_day_runs(tmp_path: Path) -> None:
+    deals_dir = tmp_path / "deals"
+    deals_dir.mkdir()
+
+    first_path = build_deals_snapshot_path(
+        deals_dir,
+        mode="legacy",
+        now=datetime(2026, 4, 21, 14, 30, 22),
+    )
+    second_path = build_deals_snapshot_path(
+        deals_dir,
+        mode="agentic",
+        now=datetime(2026, 4, 21, 14, 35, 55),
+    )
+
+    first_path.write_text("[]", encoding="utf-8")
+    second_path.write_text("[]", encoding="utf-8")
+
+    assert first_path.name == "2026-04-21_legacy_143022.json"
+    assert second_path.name == "2026-04-21_agentic_143555.json"
+    assert first_path != second_path
+    assert sorted(path.name for path in deals_dir.glob("*.json")) == [
+        "2026-04-21_agentic_143555.json",
+        "2026-04-21_legacy_143022.json",
+    ]
 
 
 def memory_engine() -> Engine:

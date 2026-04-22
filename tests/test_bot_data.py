@@ -49,15 +49,16 @@ def test_load_sample_deals(tmp_path: Path) -> None:
     deals_dir = tmp_path / "deals"
     deals_dir.mkdir()
     payload = [deal.model_dump(mode="json") for deal in sample_deals()]
-    (deals_dir / "2026-04-20.json").write_text(
+    (deals_dir / "2026-04-20_agentic_101530.json").write_text(
         json.dumps(payload, ensure_ascii=False),
         encoding="utf-8",
     )
+    (deals_dir / "2026-04-20_legacy_094500.json").write_text("[]", encoding="utf-8")
 
     path = latest_deals_file(deals_dir)
 
     assert path is not None
-    assert path.name == "2026-04-20.json"
+    assert path.name == "2026-04-20_agentic_101530.json"
     assert len(load_latest_deals(deals_dir)) == 2
 
 

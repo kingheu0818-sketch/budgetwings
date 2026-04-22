@@ -133,7 +133,7 @@ python cli.py eval-compare --report1 eval/reports/2026-04-20.json --report2 eval
 
 Outputs are written to:
 
-- `data/deals/YYYY-MM-DD.json`
+- `data/deals/YYYY-MM-DD_<mode>_<HHMMSS>.json`
 - `data/guides/DEAL_ID.md`
 - `data/budgetwings.db`
 - `eval/reports/YYYY-MM-DD.json`

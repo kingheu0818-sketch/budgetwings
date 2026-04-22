@@ -3,13 +3,13 @@ from __future__ import annotations
 import argparse
 import asyncio
 import json
-from datetime import UTC, datetime
 from pathlib import Path
 
 from agents.analyst import AnalystAgent
 from agents.guide import GuideAgent
 from agents.scout import ScoutAgent
 from config import Settings, get_settings
+from db.repository import build_deals_snapshot_path
 from llm.base import LLMAdapter
 from llm.claude import ClaudeAdapter
 from llm.openai_adapter import OpenAIAdapter
@@ -56,7 +56,10 @@ class Orchestrator:
 
     def _write_deals(self, deals: list[Deal], output_dir: Path) -> Path:
         output_dir.mkdir(parents=True, exist_ok=True)
-        output_path = output_dir / f"{datetime.now(UTC).date().isoformat()}.json"
+        output_path = build_deals_snapshot_path(
+            output_dir,
+            mode=getattr(self.scout, "mode", "run"),
+        )
         payload = [deal.model_dump(mode="json") for deal in deals]
         output_path.write_text(
             json.dumps(payload, ensure_ascii=False, indent=2) + "\n",

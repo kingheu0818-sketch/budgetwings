@@ -32,6 +32,7 @@ class FakeLLM(LLMAdapter):
         messages: list[ChatMessage],
         tools: list[ToolSchema] | None = None,
     ) -> str:
+        del messages, tools
         return self.response
 
     async def chat_with_tools(
@@ -39,6 +40,7 @@ class FakeLLM(LLMAdapter):
         messages: list[ChatMessage],
         tools: list[ToolSchema],
     ) -> ToolCallResult:
+        del messages, tools
         return {"provider": "fake", "tool_calls": []}
 
     async def extract_structured(
@@ -54,16 +56,39 @@ class FakeLLM(LLMAdapter):
 
 class FakeSearchTool(WebSearchTool):
     async def _search(self, query: str, max_results: int) -> list[dict[str, Any]]:
+        del max_results
         return [{"title": "Deal", "url": "https://example.com", "content": query}]
+
+    def _cached_results(self, query: str, max_results: int) -> list[dict[str, str]]:
+        del query, max_results
+        return []
+
+
+class CachedFallbackSearchTool(WebSearchTool):
+    async def _search(self, query: str, max_results: int) -> list[dict[str, Any]]:
+        del query, max_results
+        raise RuntimeError("quota exceeded")
+
+    def _cached_results(self, query: str, max_results: int) -> list[dict[str, str]]:
+        del max_results
+        return [
+            {
+                "title": "cached",
+                "url": "https://example.com/cached",
+                "content": f"Cached result for {query}: 深圳飞曼谷 2026-05-12 单程 399 元。",
+            }
+        ]
 
 
 class FakeFetchTool(WebFetchTool):
     async def _fetch_html(self, url: str) -> str:
+        del url
         return "<html><body><script>bad()</script><main>Cheap flight CNY 199</main></body></html>"
 
 
 class FakeWeatherTool(WeatherTool):
     async def _lookup(self, city: str, country: str | None, days: int) -> dict[str, Any]:
+        del days
         return {"city": city, "country": country, "forecast": {"time": ["2026-05-01"]}}
 
 
@@ -104,17 +129,31 @@ def test_web_search_tool_uses_backend() -> None:
 
     assert result.success is True
     assert isinstance(result.data, list)
-    assert result.data[0]["url"] == "https://example.com"
+    assert any(item.get("url") == "https://example.com" for item in result.data)
 
 
 def test_web_search_tool_falls_back_without_tavily_key() -> None:
     settings = Settings.model_construct(tavily_api_key=None)
-    result = asyncio.run(WebSearchTool(settings).execute(WebSearchInput(query="深圳 特价机票")))
+    result = asyncio.run(
+        CachedFallbackSearchTool(settings).execute(WebSearchInput(query="深圳 特价机票"))
+    )
 
     assert result.success is True
     assert isinstance(result.data, list)
-    assert result.data[0]["title"] == "fallback"
+    assert result.data[0]["title"] == "cached"
     assert "深圳 特价机票" in result.data[0]["content"]
+
+
+def test_web_search_tool_falls_back_when_backend_errors() -> None:
+    settings = Settings.model_construct(tavily_api_key="fake")
+    result = asyncio.run(
+        CachedFallbackSearchTool(settings).execute(WebSearchInput(query="深圳 飞 曼谷 特价"))
+    )
+
+    assert result.success is True
+    assert isinstance(result.data, list)
+    assert result.data[0]["title"] == "cached"
+    assert "深圳飞曼谷" in result.data[0]["content"]
 
 
 def test_web_fetch_tool_extracts_text() -> None:

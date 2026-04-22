@@ -18,7 +18,7 @@ from agents.scout import ScoutAgent
 from agents.validator import validate_deals
 from config import Settings, get_settings
 from db.models import SearchLog
-from db.repository import save_deals, save_search_log
+from db.repository import build_deals_snapshot_path, save_deals, save_search_log
 from models.deal import Deal
 from models.persona import PersonaType
 from observability.tracer import LLMTracer
@@ -445,7 +445,10 @@ class GraphPipeline:
 
     def _write_deals(self, deals: list[Deal], output_dir: Path) -> Path:
         output_dir.mkdir(parents=True, exist_ok=True)
-        output_path = output_dir / f"{datetime.now(UTC).date().isoformat()}.json"
+        output_path = build_deals_snapshot_path(
+            output_dir,
+            mode=getattr(self.scout, "mode", "run"),
+        )
         output_path.write_text(
             json.dumps(
                 [deal.model_dump(mode="json") for deal in deals],
